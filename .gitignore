@@ -1,0 +1,5 @@
+.DS_Store
+/o-gh
+/.worktrees
+go.work
+go.work.sum

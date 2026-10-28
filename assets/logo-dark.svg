@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 298 112" width="298" height="112" role="img" aria-label="o-gh">
+<title>o-gh</title>
+<g transform="translate(-20 -16)">
+<path d="M32 32H48V96H32Z" fill="#9d6cf2"/>
+<path d="M88 88V56A24 24 0 0 0 64 32" fill="none" stroke="#9d6cf2" stroke-width="16"/>
+<path d="M76 18L62 32L76 46" fill="none" stroke="#9d6cf2" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+<g fill="#9d6cf2"><circle cx="40" cy="32" r="16"/><circle cx="40" cy="96" r="16"/><circle cx="88" cy="96" r="16"/></g>
+<g fill="#efe7ff"><circle cx="40" cy="32" r="6"/><circle cx="40" cy="96" r="6"/><circle cx="88" cy="96" r="6"/></g>
+</g>
+<path d="M132 44a20 20 0 1 0 0.01 0M167 64h16M218 44a20 20 0 1 0 0.01 0M238 44V95a11 11 0 0 1 -11 11h-14M253 18V84M253 62a18 18 0 0 1 36 0V84" fill="none" stroke="#f1ecfb" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

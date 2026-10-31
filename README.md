@@ -4,20 +4,20 @@
     <img alt="o-gh" src="assets/logo-light.svg" width="247">
   </picture>
   <br>
-  <a href="go.mod"><img alt="Go version" src="https://img.shields.io/github/go-mod/go-version/unixsuperhero/o-gh"></a>
-  <a href="LICENSE"><img alt="License" src="https://img.shields.io/github/license/unixsuperhero/o-gh"></a>
+  <a href="go.mod"><img alt="Go version" src="https://img.shields.io/github/go-mod/go-version/ofamtools/o-gh"></a>
+  <a href="LICENSE"><img alt="License" src="https://img.shields.io/github/license/ofamtools/o-gh"></a>
 </p>
 
 <p align="center">The family's GitHub pull requests: yours, the ones waiting on your review, the ones you watch and the ones you ignore, on one page, with new review requests and CI changes sent to the mtm inbox.</p>
 
-o-gh (`o gh` under [oden](https://github.com/unixsuperhero/oden)'s `o`, or `o-gh`) reads GitHub through the `gh` CLI you are already logged in to: one `gh api graphql` request answers both searches and every watched PR. It never writes to GitHub. What you watch and ignore is o-gh's own state, kept in its data directory.
+o-gh (`o gh` under [oden](https://github.com/ofamtools/oden)'s `o`, or `o-gh`) reads GitHub through the `gh` CLI you are already logged in to: one `gh api graphql` request answers both searches and every watched PR. It never writes to GitHub. What you watch and ignore is o-gh's own state, kept in its data directory.
 
 ## Install
 
-Module `github.com/unixsuperhero/o-gh`; requires Go 1.27 or newer and a logged-in [`gh`](https://cli.github.com).
+Module `ofam.dev/o-gh`; requires Go 1.27 or newer and a logged-in [`gh`](https://cli.github.com).
 
 ```sh
-go install github.com/unixsuperhero/o-gh@latest
+go install ofam.dev/o-gh@latest
 ```
 
 or, from a checkout:

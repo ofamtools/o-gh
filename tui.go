@@ -12,9 +12,9 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
-	"github.com/unixsuperhero/ochazuke"
-	ocli "github.com/unixsuperhero/ochazuke/cli"
-	"github.com/unixsuperhero/oden"
+	"ofam.dev/ochazuke"
+	ocli "ofam.dev/ochazuke/cli"
+	"ofam.dev/oden"
 )
 
 // The PRs page on its own: o-gh mounts its declared data page over itself

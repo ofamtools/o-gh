@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	ocli "github.com/unixsuperhero/ochazuke/cli"
+	ocli "ofam.dev/ochazuke/cli"
 )
 
 // A PR row: id pr/OWNER/REPO#N (what --target takes), label "KEY title",

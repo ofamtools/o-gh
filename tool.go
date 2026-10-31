@@ -7,7 +7,7 @@ import (
 	"slices"
 	"time"
 
-	"github.com/unixsuperhero/ochazuke"
+	"ofam.dev/ochazuke"
 )
 
 // Tool is o-gh: its runtime (nouns, verbs, settings, the PRs page), the gh

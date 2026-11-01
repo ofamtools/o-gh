@@ -1,9 +1,11 @@
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="assets/logo-dark.svg">
-    <img alt="o-gh" src="assets/logo-light.svg" width="247">
+    <source media="(prefers-color-scheme: dark)" srcset="assets/logo-animated-dark.svg">
+    <img alt="o-gh" src="assets/logo-animated-light.svg" width="360">
   </picture>
   <br>
+  <a href="https://github.com/ofamtools/o-gh/tags"><img alt="Latest tag" src="https://img.shields.io/github/v/tag/ofamtools/o-gh"></a>
+  <a href="https://pkg.go.dev/ofam.dev/o-gh"><img alt="Go Reference" src="https://pkg.go.dev/badge/ofam.dev/o-gh.svg"></a>
   <a href="go.mod"><img alt="Go version" src="https://img.shields.io/github/go-mod/go-version/ofamtools/o-gh"></a>
   <a href="LICENSE"><img alt="License" src="https://img.shields.io/github/license/ofamtools/o-gh"></a>
 </p>

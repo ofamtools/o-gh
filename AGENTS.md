@@ -12,7 +12,7 @@ Family plans, todos and the roadmap live in `~/hub/o-plans/` (`README.md` is the
 
 | Concern | File |
 |---|---|
-| `main`, the oden app, the shell's `--target` reveal, `o-gh signals` | `main.go` |
+| `main`, the oden app, the shell's `--target` reveal, `o gh signals` | `main.go` |
 | The gh runner, the GraphQL query (searches + one alias per watched PR), parsing, check states, `PRKey` | `gh.go` |
 | Collections, ignore rules, CI from checks (`pr.ignore-checks`), `classify` | `collections.go` |
 | The data directory: `state.json` (watched, ignored, allowed), the lock, atomic writes | `state.go` |

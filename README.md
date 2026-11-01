@@ -19,6 +19,7 @@ o-gh (`o gh` under [oden](https://github.com/ofamtools/oden)'s `o`, or `o-gh`) r
 Module `ofam.dev/o-gh`; requires Go 1.27 or newer and a logged-in [`gh`](https://cli.github.com).
 
 ```sh
+go install ofam.dev/oden/cmd/o@latest   # oden's o: o gh runs o-gh, no dash needed
 go install ofam.dev/o-gh@latest
 ```
 
@@ -34,18 +35,18 @@ ochazuke (`v0.24.0`) and oden (`v0.1.1`) are required at their tags. An untracke
 ## Usage
 
 ```sh
-o-gh                                    # the PRs page (also o-gh view; --smoke renders one frame)
-o-gh pr mine|reviews|watched|ignored    # one collection's rows
-o-gh pr list [--collection C] [--fresh] # every PR once, or one collection
-o-gh pr show|open|open-files|copy-url|copy-branch --target PR
-o-gh pr watch|unwatch|ignore|unignore --target PR
-o-gh pr checkout [DIR] --target PR      # gh pr checkout, after a confirm (--yes)
-o-gh pr send-to-inbox [WHY] --target PR
-o-gh pr refresh                         # poll now; the counts
-o-gh collection list|show|open          # show and open take --target collection/ID
-o-gh signals [--dry-run]                # new review requests and CI changes to the mtm inbox
-o-gh settings list|set|reset            # the settings below
-o-gh catalog                            # the nouns, verbs and page, for mtm
+o gh                                    # the PRs page (also o gh view; --smoke renders one frame)
+o gh pr mine|reviews|watched|ignored    # one collection's rows
+o gh pr list [--collection C] [--fresh] # every PR once, or one collection
+o gh pr show|open|open-files|copy-url|copy-branch --target PR
+o gh pr watch|unwatch|ignore|unignore --target PR
+o gh pr checkout [DIR] --target PR      # gh pr checkout, after a confirm (--yes)
+o gh pr send-to-inbox [WHY] --target PR
+o gh pr refresh                         # poll now; the counts
+o gh collection list|show|open          # show and open take --target collection/ID
+o gh signals [--dry-run]                # new review requests and CI changes to the mtm inbox
+o gh settings list|set|reset            # the settings below
+o gh catalog                            # the nouns, verbs and page, for mtm
 ```
 
 `PR` is a PR's URL, `OWNER/REPO#N` or its row id `pr/OWNER/REPO#N`. A list verb answers rows (`{noun, id, label, data, cells}`); `--format table|markdown|toon` prints the cells.
@@ -53,21 +54,21 @@ o-gh catalog                            # the nouns, verbs and page, for mtm
 The examples use invented PRs (the tests' fixture, `testdata/poll.json`):
 
 ```console
-$ o-gh collection list --format table
+$ o gh collection list --format table
 Collection  PRs  About
 Mine          2  Your open PRs and drafts (pr.mine-query)
 My Reviews    2  Open PRs that ask for your review (pr.reviews-query)
 Watched       0  PRs you watch: pr watch; their CI changes are signals
 Ignored       0  PRs you ignored or an ignore rule (pr.ignore) matches: no signals
-$ o-gh pr mine --format table
+$ o gh pr mine --format table
 PR                   Title                      Author  CI      Review        Updated
 tea-shop/kitchen#12  Add the rice cooker timer  miso    ✗ fail  waiting on 2      20h
 tea-shop/menu#3      [draft] WIP: tea menu      miso    … run   -                  2d
-$ o-gh settings set pr.ignore '["author:dependabot*"]' >/dev/null
-$ o-gh pr ignored --format table
+$ o gh settings set pr.ignore '["author:dependabot*"]' >/dev/null
+$ o gh pr ignored --format table
 PR                   Title                         Author           CI      Review        Updated
 tea-shop/kitchen#41  Bump steeper from 1.2 to 1.3  dependabot[bot]  ✓ pass  waiting on 1      18h
-$ o-gh signals --dry-run | jq -c '.signals[] | {kind, why}'
+$ o gh signals --dry-run | jq -c '.signals[] | {kind, why}'
 {"kind":"review-requested","why":"review requested: tea-shop/kitchen#40 Bump leaf grade (by nori)"}
 ```
 
@@ -92,7 +93,7 @@ A PR can be in Mine and Watched at once. An ignored PR is in Ignored only and se
 
 ### Signals
 
-`o-gh signals` polls once, compares with the last run and sends each new item to the mtm inbox:
+`o gh signals` polls once, compares with the last run and sends each new item to the mtm inbox:
 
 - **review-requested**: a PR in My Reviews that the last run did not see there. On the first run every open request is new.
 - **ci**: a PR in Mine or Watched whose CI became `fail` or `pass` (a change to `pending` is not a signal). The first run records the states only.
@@ -107,7 +108,7 @@ mtm action-item add --source gh --url URL --why WHY
 
 ### The poll and the cache
 
-The four lists read one cached poll (`poll.max-age`, default 60s); a watch the cached poll did not ask for, or a change to a search, polls again. A lock in the data directory makes lists loading at once poll once. `--fresh`, `pr refresh` and `o-gh signals` always poll. A watched PR the poll cannot find stays in Watched, marked stale, with the poll's error in `pr refresh`.
+The four lists read one cached poll (`poll.max-age`, default 60s); a watch the cached poll did not ask for, or a change to a search, polls again. A lock in the data directory makes lists loading at once poll once. `--fresh`, `pr refresh` and `o gh signals` always poll. A watched PR the poll cannot find stays in Watched, marked stale, with the poll's error in `pr refresh`.
 
 ### Settings and data
 

@@ -6,7 +6,7 @@ third whose stem curves over into an arrowhead pointing back at the
 branch, in violet, GitHub's colour for a merge. Discs and stems sit on the
 8-unit grid (one pixel at 16 px) and each disc has a pale knockout, so the
 icon stays a PR at 16 px. The set, its geometry and the wordmark are o-proj's
-(docs/logo/build.py there, itself from ~/hub/o-plans/icons/build.py):
+(docs/logo/build.py in o-proj):
 
 - icon.svg: a 128x128 tile (rx 28) in a dark tint of the tool's hue, the
   mark centred on it, in the dark palette.

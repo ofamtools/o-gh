@@ -1,12 +1,12 @@
 # o-gh: agent guide
 
-`o-gh` (so `o gh`) is the family's GitHub PR tool: the PRs page (Mine, My Reviews, Watched, Ignored) and the signals it sends into the mtm inbox. It reads GitHub through the `gh` CLI only, one `gh api graphql --input -` request per poll, and never writes to GitHub (`pr checkout` is gh's local checkout). Design: `~/hub/o-plans/plans/inbox-and-signals.md` (lane L2).
+`o-gh` (so `o gh`) is the family's GitHub PR tool: the PRs page (Mine, My Reviews, Watched, Ignored) and the signals it sends into the mtm inbox. It reads GitHub through the `gh` CLI only, one `gh api graphql --input -` request per poll, and never writes to GitHub (`pr checkout` is gh's local checkout).
 
 It meets mtm only through each other's command line: mtm mounts the page from `o-gh catalog` and runs `o-gh pr VERB --target ID`; o-gh runs `mtm action-item add --source gh --url URL --why WHY` (spelled once, in `inboxCommand`). o-gh never imports a matomeru package or opens mtm's database.
 
 ## Plans and todos
 
-Family plans, todos and the roadmap live in `~/hub/o-plans/` (`README.md` is the index). Read it before planning work; add or update items there. Do not add a TODO.md or docs/plans/ to this repo.
+Keep planning work in the family planning workspace, separate from this repository. Do not add a TODO.md or docs/plans/ to this repo.
 
 ## Where does X live
 

@@ -60,8 +60,10 @@ func run(t *Tool, args []string) error {
 Page:
   o-gh (or o-gh view) opens the PRs page; --smoke renders one frame.
 Signals:
-  o-gh signals [--dry-run] sends new review requests and CI changes to the mtm inbox
-  (mtm action-item add --source gh --url URL --why WHY; $O_GH_MTM names another mtm).`
+  o-gh signals [--dry-run] sends new review requests (yours, and your on-call team's while on call),
+  CI changes, reviews, comments, conflicts, merges and closes to the mtm inbox
+  (mtm action-item add --source gh --url URL --why WHY --title T --kind K --key KEY --reopen;
+  $O_GH_MTM names another mtm).`
 	return app.Run(context.Background())
 }
 
@@ -75,7 +77,7 @@ func (t *Tool) Shell() *ocli.Shell {
 			id := strings.TrimPrefix(target, collectionNoun+"/")
 			c, ok := collectionByID(id)
 			if !ok {
-				return fmt.Errorf("%q: not a collection (mine, reviews, watched, ignored)", id)
+				return fmt.Errorf("%q: not a collection (mine, reviews, oncall, watched, ignored)", id)
 			}
 			return t.targets.SetItems([]ochazuke.ListItem{{ID: target, Label: c.Title, Noun: collectionNoun, Data: target}})
 		}
@@ -87,10 +89,10 @@ func (t *Tool) Shell() *ocli.Shell {
 // signalsCommand is o-gh signals.
 func signalsCommand(t *Tool) oden.Command {
 	return oden.Command{
-		Name: "signals", Summary: "send new review requests and CI changes since the last run to the mtm inbox",
+		Name: "signals", Summary: "send what changed on your PRs and new review requests since the last run to the mtm inbox",
 		Usage: "[--dry-run]", Source: "o-gh",
 		Details: "Polls GitHub once, compares with the last run (signals.json in the data directory) and runs " +
-			"mtm action-item add --source gh --url URL --why WHY for each signal. --dry-run prints the signals " +
+			"mtm action-item add --source gh --url URL --why WHY --title T --kind K --key KEY --reopen for each signal (pr.signals picks the kinds). --dry-run prints the signals " +
 			"and the commands, sends nothing and keeps the last run as it was. Ignored PRs send nothing.",
 		Run: func(ctx context.Context, args []string) error {
 			flags := flag.NewFlagSet("o-gh signals", flag.ContinueOnError)

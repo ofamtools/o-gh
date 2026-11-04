@@ -61,9 +61,9 @@ const prFragment = `fragment pr on PullRequest {
   repository { nameWithOwner }
   headRefName baseRefName
   labels(first: 10) { nodes { name } }
-  comments { totalCount }
+  comments(last: 1) { totalCount nodes { author { login } } }
   reviewRequests(first: 20) { nodes { requestedReviewer { ... on User { login } ... on Team { slug } } } }
-  reviews(last: 30) { nodes { author { login } state } }
+  reviews(last: 30) { nodes { id author { login } state } }
   commits(last: 1) { nodes { commit { oid statusCheckRollup { state contexts(first: 100) { nodes {
     __typename
     ... on CheckRun { name status conclusion detailsUrl }
@@ -73,6 +73,7 @@ const prFragment = `fragment pr on PullRequest {
 // Query is what one poll asks for.
 type Query struct {
 	Mine, Reviews string  // the search queries; "" leaves that search out
+	Oncall        string  // the on-call review search; "" off call or unset
 	Limit         int     // rows per search
 	Watched       []PRKey // fetched by number, whatever their state
 }
@@ -86,7 +87,7 @@ func buildQuery(q Query) (string, map[string]any) {
 	if limit <= 0 || limit > 100 {
 		limit = 50
 	}
-	if q.Mine != "" || q.Reviews != "" {
+	if q.Mine != "" || q.Reviews != "" || q.Oncall != "" {
 		params = append(params, "$first: Int!")
 		vars["first"] = limit
 	}
@@ -94,6 +95,11 @@ func buildQuery(q Query) (string, map[string]any) {
 		params = append(params, "$mine: String!")
 		vars["mine"] = q.Mine
 		body = append(body, "  mine: search(query: $mine, type: ISSUE, first: $first) { issueCount nodes { ...pr } }")
+	}
+	if q.Oncall != "" {
+		params = append(params, "$oncall: String!")
+		vars["oncall"] = q.Oncall
+		body = append(body, "  oncall: search(query: $oncall, type: ISSUE, first: $first) { issueCount nodes { ...pr } }")
 	}
 	if q.Reviews != "" {
 		params = append(params, "$reviews: String!")
@@ -137,8 +143,10 @@ type Poll struct {
 	Mine         []PR      `json:"mine"`
 	Reviews      []PR      `json:"reviews"`
 	Watched      []PR      `json:"watched"`
+	Oncall       []PR      `json:"oncall"`
 	MineTotal    int       `json:"mine_total"`
 	ReviewsTotal int       `json:"reviews_total"`
+	OncallTotal  int       `json:"oncall_total"`
 	// Asked are the watched PRs the poll asked for (URLs), found or not.
 	Asked []string `json:"asked,omitempty"`
 	// Errors are GraphQL errors that came with data (a watched PR gone).
@@ -165,6 +173,7 @@ type PR struct {
 	HeadSHA        string   `json:"head_sha,omitempty"`
 	Labels         []string `json:"labels,omitempty"`
 	Comments       int      `json:"comments"`
+	LastCommentBy  string   `json:"last_comment_by,omitempty"`
 	Requested      []string `json:"requested,omitempty"` // logins and team slugs
 	Reviews        []Review `json:"reviews,omitempty"`
 	Rollup         string   `json:"rollup,omitempty"` // statusCheckRollup.state
@@ -181,6 +190,7 @@ type Check struct {
 
 // Review is one submitted review.
 type Review struct {
+	ID    string `json:"id,omitempty"`
 	Who   string `json:"who"`
 	State string `json:"state"`
 }
@@ -212,6 +222,11 @@ type node struct {
 	} `json:"labels"`
 	Comments struct {
 		TotalCount int `json:"totalCount"`
+		Nodes      []struct {
+			Author *struct {
+				Login string `json:"login"`
+			} `json:"author"`
+		} `json:"nodes"`
 	} `json:"comments"`
 	ReviewRequests struct {
 		Nodes []struct {
@@ -223,6 +238,7 @@ type node struct {
 	} `json:"reviewRequests"`
 	Reviews struct {
 		Nodes []struct {
+			ID     string `json:"id"`
 			Author *struct {
 				Login string `json:"login"`
 			} `json:"author"`
@@ -271,7 +287,7 @@ func parsePoll(out []byte, q Query, now time.Time) (Poll, error) {
 	if err := json.Unmarshal(out, &reply); err != nil {
 		return Poll{}, fmt.Errorf("gh api graphql: not JSON: %w", err)
 	}
-	p := Poll{At: now.UTC(), Mine: []PR{}, Reviews: []PR{}, Watched: []PR{}}
+	p := Poll{At: now.UTC(), Mine: []PR{}, Reviews: []PR{}, Watched: []PR{}, Oncall: []PR{}}
 	for _, e := range reply.Errors {
 		p.Errors = append(p.Errors, e.Message)
 	}
@@ -305,11 +321,26 @@ func parsePoll(out []byte, q Query, now time.Time) (Poll, error) {
 		}
 		return prs, s.IssueCount, nil
 	}
+	// A search that was asked for and did not answer is a failed read, not
+	// an empty list: an empty one would drop every PR it held from the
+	// snapshot and signal them all again when it came back.
+	for name, asked := range map[string]bool{"mine": q.Mine != "", "reviews": q.Reviews != "", "oncall": q.Oncall != ""} {
+		if raw, ok := reply.Data[name]; asked && (!ok || string(raw) == "null") {
+			msg := "the " + name + " search did not answer"
+			if len(p.Errors) > 0 {
+				msg += ": " + strings.Join(p.Errors, "; ")
+			}
+			return Poll{}, errors.New("gh api graphql: " + msg)
+		}
+	}
 	var err error
 	if p.Mine, p.MineTotal, err = readSearch("mine"); err != nil {
 		return Poll{}, err
 	}
 	if p.Reviews, p.ReviewsTotal, err = readSearch("reviews"); err != nil {
+		return Poll{}, err
+	}
+	if p.Oncall, p.OncallTotal, err = readSearch("oncall"); err != nil {
 		return Poll{}, err
 	}
 	for i, k := range q.Watched {
@@ -353,6 +384,9 @@ func (n *node) pr() PR {
 	for _, l := range n.Labels.Nodes {
 		pr.Labels = append(pr.Labels, l.Name)
 	}
+	if len(n.Comments.Nodes) > 0 && n.Comments.Nodes[0].Author != nil {
+		pr.LastCommentBy = n.Comments.Nodes[0].Author.Login
+	}
 	for _, rr := range n.ReviewRequests.Nodes {
 		if r := rr.RequestedReviewer; r != nil {
 			who := r.Login
@@ -369,7 +403,11 @@ func (n *node) pr() PR {
 		if r.Author != nil {
 			who = r.Author.Login
 		}
-		pr.Reviews = append(pr.Reviews, Review{Who: who, State: r.State})
+		id := r.ID
+		if id == "" {
+			id = fmt.Sprintf("%s:%s:%d", who, r.State, len(pr.Reviews))
+		}
+		pr.Reviews = append(pr.Reviews, Review{ID: id, Who: who, State: r.State})
 	}
 	if len(n.Commits.Nodes) > 0 {
 		c := n.Commits.Nodes[0].Commit

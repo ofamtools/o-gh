@@ -36,16 +36,35 @@ type Config struct {
 	Query  Query
 	MaxAge time.Duration
 	Rules  Rules
+	// Signals are the kinds o-gh signals sends (all when none are set).
+	Signals []string
+	// OncallQuery is oncall.review-query whether or not you are on call;
+	// Query.Oncall is it only while you are.
+	OncallQuery  string
+	OncallActive bool
+	// Problem is a setting that cannot be used (signals refuse to run on it).
+	Problem string
 }
 
 // config reads the settings.
 func (t *Tool) config() Config {
 	s := t.r.Settings()
-	return Config{
-		Query:  Query{Mine: s.String(setMine), Reviews: s.String(setReviews), Limit: s.Int(setLimit)},
-		MaxAge: s.Duration(setMaxAge),
-		Rules:  parseRules(s.Strings(setIgnore), s.Strings(setIgnoreChecks)),
+	oc := Oncall{Mode: s.String(setOncallMode), Start: s.String(setOncallStart), Weeks: s.Int(setOncallWeeks)}
+	c := Config{
+		Query:       Query{Mine: s.String(setMine), Reviews: s.String(setReviews), Limit: s.Int(setLimit)},
+		MaxAge:      s.Duration(setMaxAge),
+		Rules:       parseRules(s.Strings(setIgnore), s.Strings(setIgnoreChecks)),
+		Signals:     s.Strings(setSignals),
+		OncallQuery: s.String(setOncallQuery),
+		Problem:     oc.Problem(),
 	}
+	if c.Problem == "" {
+		c.Problem = signalKindsProblem(c.Signals)
+	}
+	if c.OncallActive = oc.Active(t.now()); c.OncallActive {
+		c.Query.Oncall = c.OncallQuery
+	}
+	return c
 }
 
 // cachedPoll is poll.json: the poll and the query that made it.
@@ -68,10 +87,16 @@ func (t *Tool) current(ctx context.Context, cfg Config, fresh bool) (Poll, State
 		}
 		q := cfg.Query
 		q.Watched = st.watchedKeys()
+		if fresh {
+			// Tracked PRs the last signals run saw open are fetched by
+			// number too, so a merge or close (which drops a PR out of the
+			// is:open searches) is seen.
+			q.Watched = withTracked(q.Watched, t.lastSnapshot())
+		}
 		if !fresh {
 			var c cachedPoll
 			if ok, _ := t.store.read(pollFile, &c); ok && t.now().Sub(c.Poll.At) < cfg.MaxAge &&
-				c.Query.Mine == q.Mine && c.Query.Reviews == q.Reviews && c.Query.Limit == q.Limit && covers(c.Poll.Asked, q.Watched) {
+				c.Query.Mine == q.Mine && c.Query.Reviews == q.Reviews && c.Query.Oncall == q.Oncall && c.Query.Limit == q.Limit && covers(c.Poll.Asked, q.Watched) {
 				p = c.Poll
 				return nil
 			}
@@ -109,4 +134,38 @@ func newTool(stdin io.Reader, stdout, stderr io.Writer) *Tool {
 		store: Store{Dir: dataDir()}, gh: ghRunner(os.Getenv("O_GH_GH")), inbox: mtmInbox, now: time.Now,
 		opener: openURL, clip: copyToClipboard, Stdin: stdin, Stdout: stdout, Stderr: stderr,
 	}
+}
+
+// lastSnapshot is signals.json (empty when there is none or it is unreadable;
+// runSignals reads it again and reports a bad file).
+func (t *Tool) lastSnapshot() *Snapshot {
+	var snap Snapshot
+	if ok, err := t.store.read(signalsFile, &snap); err != nil || !ok {
+		return nil
+	}
+	return &snap
+}
+
+// withTracked adds the PRs the snapshot saw open to the keys to fetch.
+func withTracked(keys []PRKey, prev *Snapshot) []PRKey {
+	if prev == nil {
+		return keys
+	}
+	have := map[string]bool{}
+	for _, k := range keys {
+		have[k.URL()] = true
+	}
+	var urls []string
+	for url, ps := range prev.PRs {
+		if ps.State == "OPEN" && !have[url] {
+			urls = append(urls, url)
+		}
+	}
+	slices.Sort(urls)
+	for _, u := range urls {
+		if k, err := parseKey(u); err == nil {
+			keys = append(keys, k)
+		}
+	}
+	return keys
 }

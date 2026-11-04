@@ -25,7 +25,7 @@ func TestDiffSignals(t *testing.T) {
 	c := classify(p, st, Rules{})
 
 	// First run: every review request, no CI change; CI recorded for mine + watched.
-	sigs, snap := diffSignals(nil, c, fixtureNow)
+	sigs, snap := diffSignals(nil, c, p, diffOpts{Viewer: "miso"}, fixtureNow)
 	if got, want := kinds(sigs), []string{kindReview + " " + urlGrade, kindReview + " " + urlBump}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("first run %v", got)
 	}
@@ -37,7 +37,7 @@ func TestDiffSignals(t *testing.T) {
 	}
 
 	// Nothing changed: nothing to send.
-	if again, _ := diffSignals(&snap, c, fixtureNow); len(again) != 0 {
+	if again, _ := diffSignals(&snap, c, p, diffOpts{Viewer: "miso"}, fixtureNow); len(again) != 0 {
 		t.Fatalf("repeat %v", kinds(again))
 	}
 
@@ -45,7 +45,7 @@ func TestDiffSignals(t *testing.T) {
 	prev := snap
 	prev.CI = map[string]string{urlTimer: "pass", urlMenu: "pending", urlTeapot: "pending"}
 	prev.Reviews = []string{urlGrade}
-	sigs, _ = diffSignals(&prev, c, fixtureNow)
+	sigs, _ = diffSignals(&prev, c, p, diffOpts{Viewer: "miso"}, fixtureNow)
 	got := kinds(sigs)
 	want := []string{kindReview + " " + urlBump, kindCI + " " + urlTimer, kindCI + " " + urlTeapot}
 	if !reflect.DeepEqual(got, want) {
@@ -58,7 +58,7 @@ func TestDiffSignals(t *testing.T) {
 		t.Fatalf("ci signal %+v", s)
 	}
 	prev.CI[urlMenu] = "pass"
-	if sigs, _ = diffSignals(&prev, c, fixtureNow); len(sigs) != 3 {
+	if sigs, _ = diffSignals(&prev, c, p, diffOpts{Viewer: "miso"}, fixtureNow); len(sigs) != 3 {
 		t.Fatalf("pass -> pending signalled: %v", kinds(sigs))
 	}
 }
@@ -70,7 +70,7 @@ func TestDiffSignalsIgnore(t *testing.T) {
 	rules := parseRules([]string{"author:dependabot*"}, nil)
 	c := classify(p, st, rules)
 	prev := &Snapshot{Reviews: []string{}, CI: map[string]string{urlTimer: "pass"}}
-	sigs, snap := diffSignals(prev, c, fixtureNow)
+	sigs, snap := diffSignals(prev, c, p, diffOpts{Viewer: "miso"}, fixtureNow)
 	// The bot's request and the ignored PR's CI failure send nothing.
 	if got := kinds(sigs); !reflect.DeepEqual(got, []string{kindReview + " " + urlGrade}) {
 		t.Fatalf("signals %v", got)
@@ -81,7 +81,7 @@ func TestDiffSignalsIgnore(t *testing.T) {
 		t.Fatalf("snapshot %+v", snap)
 	}
 	delete(st.Ignored, urlTimer)
-	sigs, _ = diffSignals(&snap, classify(p, st, Rules{}), fixtureNow)
+	sigs, _ = diffSignals(&snap, classify(p, st, Rules{}), p, diffOpts{Viewer: "miso"}, fixtureNow)
 	if got := kinds(sigs); !reflect.DeepEqual(got, []string{kindReview + " " + urlBump}) {
 		t.Fatalf("after unignore %v", got)
 	}
@@ -99,10 +99,11 @@ func TestUnsentStaysForTheNextRun(t *testing.T) {
 }
 
 func TestInboxCommand(t *testing.T) {
-	s := Signal{URL: urlGrade, Why: "review requested: x"}
+	s := Signal{Kind: kindReview, URL: urlGrade, Key: "tea-shop/kitchen#40", Title: "Bump leaf grade", Why: "review requested: x", Event: "miso"}
 	env := map[string]string{}
 	get := func(k string) string { return env[k] }
-	want := []string{"mtm", "action-item", "add", "--source", "gh", "--url", urlGrade, "--why", "review requested: x"}
+	want := []string{"mtm", "action-item", "add", "--source", "gh", "--url", urlGrade, "--why", "review requested: x",
+		"--title", "Bump leaf grade", "--kind", "review-requested", "--key", "review-requested:tea-shop/kitchen#40:miso", "--reopen"}
 	if got := inboxCommand(get, s); !reflect.DeepEqual(got, want) {
 		t.Fatalf("command %q", got)
 	}
@@ -124,12 +125,12 @@ func TestMtmInboxRunsTheCommand(t *testing.T) {
 	t.Setenv("O_GH_MTM", bin)
 	t.Setenv("O_GH_MTM_ARGS", "")
 	t.Setenv("FAIL", "")
-	s := Signal{URL: urlGrade, Why: "review requested: tea-shop/kitchen#40 Bump leaf grade"}
+	s := Signal{Kind: kindReview, URL: urlGrade, Key: "tea-shop/kitchen#40", Title: "Bump leaf grade", Why: "review requested: tea-shop/kitchen#40 Bump leaf grade"}
 	if err := mtmInbox(context.Background(), s); err != nil {
 		t.Fatal(err)
 	}
 	b, _ := os.ReadFile(log)
-	want := "action-item\nadd\n--source\ngh\n--url\n" + urlGrade + "\n--why\nreview requested: tea-shop/kitchen#40 Bump leaf grade\n"
+	want := "action-item\nadd\n--source\ngh\n--url\n" + urlGrade + "\n--why\nreview requested: tea-shop/kitchen#40 Bump leaf grade\n--title\nBump leaf grade\n--kind\nreview-requested\n--key\nreview-requested:tea-shop/kitchen#40\n--reopen\n"
 	if string(b) != want {
 		t.Fatalf("argv:\n%s", b)
 	}

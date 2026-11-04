@@ -20,7 +20,7 @@ import (
 //	            its URL or OWNER/REPO#N): list, mine, reviews, watched,
 //	            ignored, show, open, open-files, copy-url, copy-branch, watch,
 //	            unwatch, ignore, unignore, checkout, send-to-inbox, refresh
-//	collection  Mine, My Reviews, Watched, Ignored (collection/ID): list,
+//	collection  Mine, My Reviews, On-call reviews, Watched, Ignored (collection/ID): list,
 //	            show, open
 //	signal      the inbox signals: preview (o-gh signals --dry-run), push
 //	            (o-gh signals)
@@ -49,6 +49,11 @@ const (
 	setIgnore       = "pr.ignore"
 	setIgnoreChecks = "pr.ignore-checks"
 	setMaxAge       = "poll.max-age"
+	setSignals      = "pr.signals"
+	setOncallMode   = "oncall.mode"
+	setOncallStart  = "oncall.start"
+	setOncallWeeks  = "oncall.weeks"
+	setOncallQuery  = "oncall.review-query"
 )
 
 const (
@@ -101,6 +106,11 @@ func (t *Tool) newRuntime(targets bool) error {
 		{Name: setLimit, Type: ochazuke.SettingInteger, Default: 50, Description: "PRs per search (1-100)"},
 		{Name: setIgnore, Type: ochazuke.SettingList, Default: []string{}, Description: "Ignore rules: each is terms that must all match, from draft, repo:GLOB, author:GLOB, label:GLOB, base:GLOB, head:GLOB, title:TEXT (for example \"author:dependabot*\"); pr watch or pr unignore overrides a rule for one PR"},
 		{Name: setIgnoreChecks, Type: ochazuke.SettingList, Default: []string{}, Description: "Check names (globs) CI leaves out: a failing optional check does not make a PR's CI fail"},
+		{Name: setSignals, Type: ochazuke.SettingList, Default: allKinds(), Description: "The signal kinds o-gh signals sends: " + strings.Join(allKinds(), ", ") + " (empty sends all; a kind left out is still recorded, so adding it later replays nothing)"},
+		{Name: setOncallMode, Type: ochazuke.SettingString, Default: OncallAuto, Enum: []string{OncallAuto, OncallOn, OncallOff}, Description: "auto (by oncall.start and oncall.weeks), on or off"},
+		{Name: setOncallStart, Type: ochazuke.SettingString, Default: "", Description: "The first day of your on-call window, YYYY-MM-DD (local time)"},
+		{Name: setOncallWeeks, Type: ochazuke.SettingInteger, Default: 1, Description: "How many weeks from oncall.start"},
+		{Name: setOncallQuery, Type: ochazuke.SettingString, Default: "", Description: "The GitHub search behind On-call reviews, run only while on call (for example is:pr is:open team-review-requested:ORG/TEAM archived:false sort:updated-desc); empty never searches"},
 		{Name: setMaxAge, Type: ochazuke.SettingDuration, Default: 60 * time.Second, Description: "How long a poll answers the lists before the next one (o-gh signals always polls)"},
 	} {
 		if err := r.DeclareSetting(s); err != nil {
@@ -509,7 +519,10 @@ func (t *Tool) openCollection(ctx ochazuke.Ctx) ochazuke.Result {
 		return ochazuke.Failed(err)
 	}
 	cfg := t.config()
-	q := map[string]string{Mine: cfg.Query.Mine, Reviews: cfg.Query.Reviews}[c.ID]
+	q := map[string]string{Mine: cfg.Query.Mine, Reviews: cfg.Query.Reviews, OncallReviews: cfg.OncallQuery}[c.ID]
+	if q == "" && c.ID == OncallReviews {
+		return ochazuke.Failed(fmt.Errorf("%s has no search: set %s", c.Title, setOncallQuery))
+	}
 	if q == "" {
 		return ochazuke.Failed(fmt.Errorf("%s is o-gh's own: GitHub has no search for it", c.Title))
 	}

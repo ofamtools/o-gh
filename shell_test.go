@@ -50,7 +50,7 @@ func TestCatalog(t *testing.T) {
 	if err := json.Unmarshal([]byte(out), &doc); err != nil {
 		t.Fatal(err)
 	}
-	if doc.Name != "o-gh" || len(doc.Pages) != 1 || len(doc.Pages[0].Lists) != 4 || doc.Pages[0].Lists[1].Source != "pr.reviews" {
+	if doc.Name != "o-gh" || len(doc.Pages) != 1 || len(doc.Pages[0].Lists) != 5 || doc.Pages[0].Lists[1].Source != "pr.reviews" {
 		t.Fatalf("pages %+v", doc.Pages)
 	}
 	verbs := map[string]bool{}
@@ -59,7 +59,7 @@ func TestCatalog(t *testing.T) {
 			verbs[n.Name+"."+v.Name] = true
 		}
 	}
-	for _, want := range []string{"pr.mine", "pr.reviews", "pr.watched", "pr.ignored", "pr.open", "pr.show", "pr.copy-url", "pr.watch",
+	for _, want := range []string{"pr.mine", "pr.reviews", "pr.oncall", "pr.watched", "pr.ignored", "pr.open", "pr.show", "pr.copy-url", "pr.watch",
 		"pr.unwatch", "pr.ignore", "pr.unignore", "pr.checkout", "pr.send-to-inbox", "collection.list", "signal.preview", "signal.push"} {
 		if !verbs[want] {
 			t.Errorf("catalog lacks %s", want)

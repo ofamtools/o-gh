@@ -35,6 +35,7 @@ type fakeGH struct {
 	nodes   map[string]map[string]any // by URL
 	mine    []string                  // URLs the mine search answers
 	reviews []string
+	oncall  []string // URLs the on-call search answers
 	calls   int
 	bodies  []string
 	fail    error
@@ -113,6 +114,9 @@ func (f *fakeGH) run(_ context.Context, stdin []byte, args ...string) ([]byte, e
 	if strings.Contains(body.Query, "reviews: search") {
 		data["reviews"] = search(f.reviews)
 	}
+	if strings.Contains(body.Query, "oncall: search") {
+		data["oncall"] = search(f.oncall)
+	}
 	for _, m := range aliasRE.FindAllStringSubmatch(body.Query, -1) {
 		n, _ := strconv.Atoi(m[4])
 		u := PRKey{Owner: m[2], Name: m[3], Number: n}.URL()
@@ -190,3 +194,54 @@ const (
 	urlTeapot = "https://github.com/pottery/teapot/pull/7"
 	urlGone   = "https://github.com/pottery/gone/pull/1"
 )
+
+// addReview appends a review to a PR.
+func (f *fakeGH) addReview(url, id, who, state string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	rv, _ := f.nodes[url]["reviews"].(map[string]any)
+	if rv == nil {
+		rv = map[string]any{}
+	}
+	nodes, _ := rv["nodes"].([]any)
+	rv["nodes"] = append(nodes, map[string]any{"id": id, "author": map[string]any{"login": who}, "state": state})
+	f.nodes[url]["reviews"] = rv
+}
+
+// setComments sets a PR's comment count and the author of the last one.
+func (f *fakeGH) setComments(url string, count int, by string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.nodes[url]["comments"] = map[string]any{"totalCount": count, "nodes": []any{map[string]any{"author": map[string]any{"login": by}}}}
+}
+
+// setState sets a PR's state (OPEN, MERGED, CLOSED); a PR that is not open
+// leaves the is:open searches.
+func (f *fakeGH) setState(url, state string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.nodes[url]["state"] = state
+	if state != "OPEN" {
+		f.mine = removeStr(f.mine, url)
+		f.reviews = removeStr(f.reviews, url)
+		f.oncall = removeStr(f.oncall, url)
+	}
+}
+
+func removeStr(list []string, s string) []string {
+	out := []string{}
+	for _, v := range list {
+		if v != s {
+			out = append(out, v)
+		}
+	}
+	return out
+}
+
+// setCIOid is setCI with the head commit's SHA.
+func (f *fakeGH) setCIOid(url, state, oid string) {
+	f.setCI(url, state)
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.nodes[url]["commits"].(map[string]any)["nodes"].([]any)[0].(map[string]any)["commit"].(map[string]any)["oid"] = oid
+}

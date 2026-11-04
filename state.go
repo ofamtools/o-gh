@@ -207,9 +207,24 @@ func (s Store) Change(edit func(*State) error) (State, error) {
 }
 
 // Snapshot is what a signals run saw: the review requests it signalled
-// (or that were already there) and each tracked PR's CI state.
+// (or that were already there), each tracked PR's CI state and what it
+// last knew of each tracked PR. A snapshot from an older o-gh has no
+// Oncall or PRs: they are read as a baseline (recorded, nothing signalled).
 type Snapshot struct {
-	At      time.Time         `json:"at"`
-	Reviews []string          `json:"reviews"`
-	CI      map[string]string `json:"ci"`
+	At      time.Time          `json:"at"`
+	Reviews []string           `json:"reviews"`
+	CI      map[string]string  `json:"ci"`
+	Oncall  []string           `json:"oncall,omitempty"`
+	PRs     map[string]PRState `json:"prs,omitempty"`
+}
+
+// PRState is what the last run knew of one tracked PR (by URL): enough to
+// tell a new review, a new comment, a merge or a conflict from what was
+// already there.
+type PRState struct {
+	State     string   `json:"state"` // OPEN, CLOSED, MERGED
+	Comments  int      `json:"comments"`
+	Mergeable string   `json:"mergeable,omitempty"`
+	Reviews   []string `json:"reviews,omitempty"` // review ids seen
+	Ignored   bool     `json:"ignored,omitempty"`
 }

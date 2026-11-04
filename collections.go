@@ -18,8 +18,10 @@ import (
 const (
 	Mine    = "mine"
 	Reviews = "reviews"
-	Watched = "watched"
-	Ignored = "ignored"
+	// OncallReviews is the on-call reviews' id.
+	OncallReviews = "oncall"
+	Watched       = "watched"
+	Ignored       = "ignored"
 )
 
 // collection is one collection's names.
@@ -27,10 +29,11 @@ type collection struct {
 	ID, Title, Description string
 }
 
-// collections are the four, in page order.
+// collections are the five, in page order.
 var collections = []collection{
 	{Mine, "Mine", "Your open PRs and drafts (pr.mine-query)"},
 	{Reviews, "My Reviews", "Open PRs that ask for your review (pr.reviews-query)"},
+	{OncallReviews, "On-call reviews", "Open PRs that ask for your on-call team's review, searched only while on call (oncall.review-query)"},
 	{Watched, "Watched", "PRs you watch: pr watch; their CI changes are signals"},
 	{Ignored, "Ignored", "PRs you ignored or an ignore rule (pr.ignore) matches: no signals"},
 }
@@ -223,7 +226,7 @@ type Collections map[string][]Item
 
 // classify sorts a poll into the collections.
 func classify(p Poll, st State, rs Rules) Collections {
-	out := Collections{Mine: {}, Reviews: {}, Watched: {}, Ignored: {}}
+	out := Collections{Mine: {}, Reviews: {}, OncallReviews: {}, Watched: {}, Ignored: {}}
 	seen := map[string]*Item{}
 	var order []string
 	add := func(pr PR, in string, stale bool) {
@@ -243,6 +246,9 @@ func classify(p Poll, st State, rs Rules) Collections {
 	}
 	for _, pr := range p.Reviews {
 		add(pr, Reviews, false)
+	}
+	for _, pr := range p.Oncall {
+		add(pr, OncallReviews, false)
 	}
 	for _, pr := range p.Watched {
 		add(pr, "", false)
@@ -303,7 +309,7 @@ func sortItems(items []Item) {
 
 // find is the item for a PR URL in any collection.
 func (c Collections) find(url string) (Item, bool) {
-	for _, id := range []string{Mine, Reviews, Watched, Ignored} {
+	for _, id := range []string{Mine, Reviews, OncallReviews, Watched, Ignored} {
 		for _, it := range c[id] {
 			if it.URL == url {
 				return it, true

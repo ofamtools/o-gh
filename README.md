@@ -44,7 +44,7 @@ o gh pr checkout [DIR] --target PR      # gh pr checkout, after a confirm (--yes
 o gh pr send-to-inbox [WHY] --target PR
 o gh pr refresh                         # poll now; the counts
 o gh collection list|show|open          # show and open take --target collection/ID
-o gh signals [--dry-run]                # new review requests and CI changes to the mtm inbox
+o gh signals [--dry-run]                # what changed on your PRs and new review requests, to the mtm inbox
 o gh settings list|set|reset            # the settings below
 o gh catalog                            # the nouns, verbs and page, for mtm
 ```
@@ -55,11 +55,12 @@ The examples use invented PRs (the tests' fixture, `testdata/poll.json`):
 
 ```console
 $ o gh collection list --format table
-Collection  PRs  About
-Mine          2  Your open PRs and drafts (pr.mine-query)
-My Reviews    2  Open PRs that ask for your review (pr.reviews-query)
-Watched       0  PRs you watch: pr watch; their CI changes are signals
-Ignored       0  PRs you ignored or an ignore rule (pr.ignore) matches: no signals
+Collection       PRs  About
+Mine               2  Your open PRs and drafts (pr.mine-query)
+My Reviews         2  Open PRs that ask for your review (pr.reviews-query)
+On-call reviews    0  Open PRs that ask for your on-call team's review, searched only while on call (oncall.review-query)
+Watched            0  PRs you watch: pr watch; their CI changes are signals
+Ignored            0  PRs you ignored or an ignore rule (pr.ignore) matches: no signals
 $ o gh pr mine --format table
 PR                   Title                      Author  CI      Review        Updated
 tea-shop/kitchen#12  Add the rice cooker timer  miso    ✗ fail  waiting on 2      20h
@@ -96,19 +97,31 @@ A PR can be in Mine and Watched at once. An ignored PR is in Ignored only and se
 `o gh signals` polls once, compares with the last run and sends each new item to the mtm inbox:
 
 - **review-requested**: a PR in My Reviews that the last run did not see there. On the first run every open request is new.
-- **ci**: a PR in Mine or Watched whose CI became `fail` or `pass` (a change to `pending` is not a signal). The first run records the states only.
+- **oncall-review-requested**: the same for On-call reviews, which are searched only while you are on call (below). Leaving the window empties the record, so the next window signals what is open then.
+- **ci**: a PR in Mine or Watched whose CI became `fail` or `pass` (a change to `pending` is not a signal).
+- **review**, **comment**: on a PR in Mine or Watched, a review by someone else (approved, changes requested), or a comment (a review that only comments, or the comment count rising). Your own are not signals.
+- **conflicts**: a tracked PR became conflicting.
+- **merged**, **closed**: a tracked PR left the open state. The merge drops it from the `is:open` searches, so each run also fetches, by number, the PRs the last run saw open.
+
+The first run records the PR states only (CI, reviews, comments, mergeable, state): nothing already there is a signal, and a PR first seen in a later run is recorded the same way. A `signals.json` from an older o-gh is read the same way. `pr.signals` lists the kinds to send (default all, empty means all); a kind left out is still recorded, so adding it later replays nothing. A search that fails to answer is a failed run: it exits non-zero with the reason and keeps the last run.
 
 Each one runs
 
 ```sh
-mtm action-item add --source gh --url URL --why WHY
+mtm action-item add --source gh --url URL --why WHY --title TITLE --kind KIND --key KIND:OWNER/REPO#N[:EVENT] --reopen
 ```
+
+The key names the event (CI: head SHA and state; review: the review id; comment: the count; request: you or `oncall`), so one event is one row and a new event is a new row; `--reopen` shows an archived item again when its event repeats (CI fails, you archive it, CI fails again).
+
+### On call
+
+`oncall.mode`, `oncall.start` and `oncall.weeks` mean what they do in o-slack (a window of whole local days from `oncall.start`; `on` or `off` overrides the dates; `oncall.start` may be any weekday). While the window is open, `oncall.review-query` runs as a third search in the same request and fills On-call reviews (`pr oncall`), for example `is:pr is:open team-review-requested:ORG/TEAM archived:false sort:updated-desc`. Off call it does not run and the list is empty. The default query is empty: no on-call search, an empty list. The schedule is set here and in o-slack until it moves to an mtm profile.
 
 `$O_GH_MTM` names another mtm and `$O_GH_MTM_ARGS` adds words before `action-item` (for example `--data /tmp/x.db`). A signal that fails to send is kept for the next run. `--dry-run` prints the signals and the commands, sends nothing and leaves the last run as it was. Ignored PRs send nothing; an ignored PR's CI state is still recorded (unignoring it replays no old change) and its review request is not (unignoring it sends it). Run it from a schedule (mtm's, cron or a loop) to have signals arrive without a key press.
 
 ### The poll and the cache
 
-The four lists read one cached poll (`poll.max-age`, default 60s); a watch the cached poll did not ask for, or a change to a search, polls again. A lock in the data directory makes lists loading at once poll once. `--fresh`, `pr refresh` and `o gh signals` always poll. A watched PR the poll cannot find stays in Watched, marked stale, with the poll's error in `pr refresh`.
+The lists read one cached poll (`poll.max-age`, default 60s); a watch the cached poll did not ask for, or a change to a search, polls again. A lock in the data directory makes lists loading at once poll once. `--fresh`, `pr refresh` and `o gh signals` always poll. A watched PR the poll cannot find stays in Watched, marked stale, with the poll's error in `pr refresh`.
 
 ### Settings and data
 
@@ -118,13 +131,16 @@ The four lists read one cached poll (`poll.max-age`, default 60s); a watch the c
 | `pr.reviews-query` | `is:pr is:open review-requested:@me archived:false sort:updated-desc` (`user-review-requested:@me` leaves out team requests) |
 | `pr.limit` | 50 PRs per search |
 | `pr.ignore`, `pr.ignore-checks` | none |
+| `pr.signals` | every kind (see Signals) |
+| `oncall.mode` / `oncall.start` / `oncall.weeks` | `auto` / none / 1 |
+| `oncall.review-query` | empty (no on-call search) |
 | `poll.max-age` | `60s` |
 
-Settings live in `~/.config/o-gh/settings.json` (`$XDG_CONFIG_HOME`). The data directory (`$O_GH_DATA`, else `$XDG_DATA_HOME/o-gh`, else `~/.local/share/o-gh`) holds `state.json` (watched, ignored, unignored), `poll.json` (the last poll) and `signals.json` (the last signals run). `$O_GH_GH` names another gh, `$O_GH_OPEN` the URL opener and `$O_GH_CLIPBOARD` the clipboard command.
+Settings live in `~/.config/o-gh/settings.json` (`$XDG_CONFIG_HOME`). The data directory (`$O_GH_DATA`, else `$XDG_DATA_HOME/o-gh`, else `~/.local/share/o-gh`) holds `state.json` (watched, ignored, unignored), `poll.json` (the last poll) and `signals.json` (the last signals run: review requests, CI, and each tracked PR's state). `$O_GH_GH` names another gh, `$O_GH_OPEN` the URL opener and `$O_GH_CLIPBOARD` the clipboard command.
 
 ## The PRs page
 
-The catalog declares it as a data page (layout `split`: the lists Mine, My Reviews, Watched and Ignored, each from its source verb `pr.mine` and so on, beside the selected PR's record), so mtm draws it from o-gh's rows. `o-gh` mounts the same page over itself with ochazuke's `MountPage`, as a host does, and reloads it after a change and every `poll.max-age`.
+The catalog declares it as a data page (layout `split`: the lists Mine, My Reviews, On-call reviews, Watched and Ignored, each from its source verb `pr.mine` and so on, beside the selected PR's record), so mtm draws it from o-gh's rows. `o-gh` mounts the same page over itself with ochazuke's `MountPage`, as a host does, and reloads it after a change and every `poll.max-age`.
 
 | Key | Does |
 |---|---|

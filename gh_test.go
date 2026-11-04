@@ -38,7 +38,7 @@ func TestParsePollFixture(t *testing.T) {
 		Title: "Add the rice cooker timer", Author: "miso", State: "OPEN", Mergeable: "MERGEABLE", ReviewDecision: "REVIEW_REQUIRED",
 		Created: "2026-10-20T09:00:00Z", Updated: "2026-10-27T10:00:00Z", Head: "timer", Base: "main", HeadSHA: "aaa111",
 		Labels: []string{"feature"}, Comments: 2, Requested: []string{"nori", "team:cooks"},
-		Reviews: []Review{{Who: "nori", State: "COMMENTED"}}, Rollup: "FAILURE",
+		Reviews: []Review{{ID: "nori:COMMENTED:0", Who: "nori", State: "COMMENTED"}}, Rollup: "FAILURE",
 		Checks: []Check{
 			{Name: "test", State: "pass", URL: "https://ci.example/test"},
 			{Name: "lint (optional)", State: "fail", URL: "https://ci.example/lint"},

@@ -144,7 +144,7 @@ func (t *Tool) define() {
 		Verb("unwatch", t.on(t.unwatch), "Stop watching the PR").
 		Verb("ignore", t.on(t.ignore), "Ignore the PR: it moves to Ignored and sends no signals").
 		Verb("unignore", t.on(t.unignore), "Stop ignoring the PR, overriding an ignore rule that matches it").
-		Verb("checkout", t.on(t.checkout), "Check the PR's branch out in DIR (default the current directory) with gh pr checkout").Positional("dir").Confirm("Check out {{label}} with gh pr checkout?").
+		Verb("checkout", t.on(t.checkout), "Check the PR's branch out in DIR (default the current directory) with gh pr checkout").Positional("dir").Confirm("Check out {{label}} with gh pr checkout?").Agent(ochazuke.AgentAllow).
 		Verb("send-to-inbox", t.on(t.sendToInbox), "Send the PR to the mtm inbox as an action item (mtm action-item add --source gh)").Positional("why").
 		Verb("refresh", t.refresh, "Poll GitHub now and answer each collection's count")
 	// The catalog's key rows: a host mounting the PRs page answers them on

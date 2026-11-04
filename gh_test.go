@@ -35,7 +35,7 @@ func TestParsePollFixture(t *testing.T) {
 	timer := p.Mine[0]
 	want := PR{
 		NodeID: "PR_mine1", Key: "tea-shop/kitchen#12", URL: urlTimer, Repo: "tea-shop/kitchen", Number: 12,
-		Title: "Add the rice cooker timer", Author: "miso", State: "OPEN", Mergeable: "MERGEABLE", ReviewDecision: "REVIEW_REQUIRED",
+		Title: "Add the rice cooker timer", Body: "Adds a timer to the cooker.\n\n- starts at lid close\n- beeps when done", Author: "miso", State: "OPEN", Mergeable: "MERGEABLE", ReviewDecision: "REVIEW_REQUIRED",
 		Created: "2026-10-20T09:00:00Z", Updated: "2026-10-27T10:00:00Z", Head: "timer", Base: "main", HeadSHA: "aaa111",
 		Labels: []string{"feature"}, Comments: 2, Requested: []string{"nori", "team:cooks"},
 		Reviews: []Review{{ID: "nori:COMMENTED:0", Who: "nori", State: "COMMENTED"}}, Rollup: "FAILURE",

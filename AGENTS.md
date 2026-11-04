@@ -21,6 +21,7 @@ Keep planning work in the family planning workspace, separate from this reposito
 | Signal diffing, the inbox seam (`inboxCommand`, `mtmInbox`), `runSignals` | `signals.go` |
 | The catalog: settings, nouns `pr`, `collection`, `signal`, verbs, key rows, the declared page | `catalog.go` |
 | PR rows and cells, URL opener, clipboard | `rows.go` |
+| `pr.view`: the readable Markdown view over `pr.show` (a `MarkdownResult` verb) | `view.go` |
 | The page on its own: `MountPage` over the tool's own catalog, reloads | `tui.go` |
 | The logo | `docs/logo/build.py` |
 
@@ -31,6 +32,7 @@ Keep planning work in the family planning workspace, separate from this reposito
 - What a person said about one PR beats a rule: watch and unignore override `pr.ignore`; watch and ignore exclude each other.
 - A signal that fails to send stays for the next run; `--dry-run` writes nothing.
 - Work that calls gh or the inbox runs off the loop (`ochazuke.Pending`); handlers read settings on the loop into a `Config`.
+- Page stories are `cmd/o-story/stories/gh/*.json`, run by `TestPRStories` (`story_test.go`) over the page mounted on the fake gh: a keys script and what the screen must show or not show.
 - Tests use the fake gh (`fixture_test.go`, from `testdata/poll.json`) and a fake inbox; no test reaches GitHub or mtm.
 - Every commit: `gofmt -l . && go vet ./... && go test -race ./...` green (`GOWORK=off GOFLAGS=-trimpath`), `go run . catalog` answers. No amends.
 

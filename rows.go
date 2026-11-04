@@ -17,6 +17,8 @@ import (
 // the item as its record, and one cell per prColumns column.
 
 func prRow(it Item, now time.Time) ocli.Row {
+	// The row's record fills the detail pane; the body is read with pr.view.
+	it.Body = ""
 	return ocli.Row{Noun: prNoun, ID: rowIDPfx + it.Key, Label: it.Key + " " + it.Title, Data: it, Cells: prCells(it, now)}
 }
 

@@ -38,7 +38,7 @@ ochazuke (`v0.24.0`) and oden (`v0.1.1`) are required at their tags. An untracke
 o gh                                    # the PRs page (also o gh view; --smoke renders one frame)
 o gh pr mine|reviews|watched|ignored    # one collection's rows
 o gh pr list [--collection C] [--fresh] # every PR once, or one collection
-o gh pr show|open|open-files|copy-url|copy-branch --target PR
+o gh pr show|view|open|open-files|copy-url|copy-branch --target PR
 o gh pr watch|unwatch|ignore|unignore --target PR
 o gh pr checkout [DIR] --target PR      # gh pr checkout, after a confirm (--yes)
 o gh pr send-to-inbox [WHY] --target PR
@@ -148,10 +148,11 @@ The catalog declares it as a data page (layout `split`: the lists Mine, My Revie
 | `y y` | copy its URL |
 | `w` / `W` | watch / unwatch |
 | `d d` | ignore (it moves to Ignored) |
+| `g v` | read the PR (`pr.view`): a Markdown view of its facts, body and checks |
 | `g i` | send it to the mtm inbox |
 | `g c` | check it out here (`gh pr checkout`, after a confirm) |
 | `j` `k` `}` `{` | move, through the lists |
-| `:` | the palette: every verb, `pr unignore` and `pr show` included |
+| `:` | the palette: every verb, `pr unignore`, `pr show` and `pr view` included |
 | `?` | every key the focus answers |
 | `q` | quit (o-gh's own page only) |
 

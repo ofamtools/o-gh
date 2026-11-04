@@ -1,0 +1,7 @@
+{
+  "name": "gh/pr-view-no-body",
+  "script": ["j", "g", "v"],
+  "expect": [
+    { "after": 3, "contains": ["pr.view", "WIP: tea menu", "Draft: yes", "No description."], "absent": ["Adds a timer"] }
+  ]
+}

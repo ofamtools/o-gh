@@ -5,7 +5,7 @@
       "issueCount": 2,
       "nodes": [
         {
-          "id": "PR_mine1", "number": 12, "title": "Add the rice cooker timer", "url": "https://github.com/tea-shop/kitchen/pull/12",
+          "id": "PR_mine1", "number": 12, "title": "Add the rice cooker timer", "body": "Adds a timer to the cooker.\n\n- starts at lid close\n- beeps when done", "url": "https://github.com/tea-shop/kitchen/pull/12",
           "isDraft": false, "state": "OPEN", "mergeable": "MERGEABLE", "reviewDecision": "REVIEW_REQUIRED",
           "createdAt": "2026-10-20T09:00:00Z", "updatedAt": "2026-10-27T10:00:00Z",
           "author": { "login": "miso" }, "repository": { "nameWithOwner": "tea-shop/kitchen" },

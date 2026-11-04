@@ -29,7 +29,7 @@ func viewCommand(t *Tool) oden.Command {
 	return oden.Command{
 		Name: "view", Summary: "open the PRs page: Mine, My Reviews, Watched and Ignored beside the selected PR",
 		Usage: "[--smoke] [--width N] [--height N]", Source: "o-gh",
-		Details: "o-gh with no command opens it too. Keys: enter opens the PR, y y copies its URL, w watches, W unwatches, " +
+		Details: "o-gh with no command opens it too. Keys: enter opens the PR, g v reads it, y y copies its URL, w watches, W unwatches, " +
 			"d d ignores, g i sends it to the inbox, g c checks it out; : runs any verb (pr unignore, pr show, ...); ? lists every key; q quits.",
 		Run: func(_ context.Context, args []string) error { return runTUI(t, args) },
 	}

@@ -56,7 +56,7 @@ func ghRunner(bin string) Runner {
 
 // prFragment is every field a PR row, its detail and the signals read.
 const prFragment = `fragment pr on PullRequest {
-  id number title url isDraft state mergeable reviewDecision createdAt updatedAt
+  id number title url body isDraft state mergeable reviewDecision createdAt updatedAt
   author { login }
   repository { nameWithOwner }
   headRefName baseRefName
@@ -161,6 +161,7 @@ type PR struct {
 	Repo           string   `json:"repo"`
 	Number         int      `json:"number"`
 	Title          string   `json:"title"`
+	Body           string   `json:"body,omitempty"`
 	Author         string   `json:"author"`
 	Draft          bool     `json:"draft"`
 	State          string   `json:"state"` // OPEN, CLOSED, MERGED
@@ -200,6 +201,7 @@ type node struct {
 	ID             string `json:"id"`
 	Number         int    `json:"number"`
 	Title          string `json:"title"`
+	Body           string `json:"body"`
 	URL            string `json:"url"`
 	IsDraft        bool   `json:"isDraft"`
 	State          string `json:"state"`
@@ -365,7 +367,7 @@ func parsePoll(out []byte, q Query, now time.Time) (Poll, error) {
 // pr is the node as a PR row.
 func (n *node) pr() PR {
 	pr := PR{
-		NodeID: n.ID, URL: n.URL, Repo: n.Repository.NameWithOwner, Number: n.Number, Title: n.Title,
+		NodeID: n.ID, URL: n.URL, Repo: n.Repository.NameWithOwner, Number: n.Number, Title: n.Title, Body: n.Body,
 		Draft: n.IsDraft, State: n.State, Mergeable: n.Mergeable, ReviewDecision: n.ReviewDecision,
 		Created: n.CreatedAt, Updated: n.UpdatedAt, Head: n.HeadRefName, Base: n.BaseRefName,
 		Comments: n.Comments.TotalCount,

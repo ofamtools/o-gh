@@ -136,6 +136,7 @@ func (t *Tool) define() {
 		pr.Verb(c.ID, t.collectionRows(c.ID), c.Title+": "+c.Description).Rows(prNoun).Fetch().Quiet()
 	}
 	pr.Verb("show", t.on(t.showPR), "Show one PR: its record, CI checks and reviews (read from the last poll, else fetched)").Fetch().
+		Verb("view", t.on(t.viewPR), "Read the PR as text: title, state, CI, reviewers, comments, branch, URL and the body (pr show is the record)").MarkdownResult().Fetch().
 		Verb("open", t.on(t.openPR), "Open the PR in the browser").
 		Verb("open-files", t.on(t.openFiles), "Open the PR's changed files in the browser").
 		Verb("copy-url", t.on(t.copyURL), "Copy the PR's URL to the clipboard and answer it").
@@ -155,6 +156,7 @@ func (t *Tool) define() {
 		Bind("w", ochazuke.Do(prNoun+".watch")).
 		Bind("W", ochazuke.Do(prNoun+".unwatch")).
 		Bind("d d", ochazuke.Do(prNoun+".ignore")).
+		Bind("g v", ochazuke.Do(prNoun+".view")).
 		Bind("g i", ochazuke.Do(prNoun+".send-to-inbox")).
 		Bind("g c", ochazuke.Do(prNoun+".checkout"))
 	r.Define(collectionNoun).Columns(collectionColumns...).

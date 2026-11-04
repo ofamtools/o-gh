@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -13,6 +14,7 @@ import (
 // scripted runs the requests of a poll through a fake that answers by the
 // document: answer(doc) returns the gh output or an error.
 type scripted struct {
+	mu     sync.Mutex
 	docs   []string
 	sleeps []time.Duration
 	answer func(doc string, n int) ([]byte, error)
@@ -21,7 +23,9 @@ type scripted struct {
 
 func (s *scripted) run(_ context.Context, stdin []byte, _ ...string) ([]byte, error) {
 	doc := string(stdin)
+	s.mu.Lock()
 	s.docs = append(s.docs, doc)
+	s.mu.Unlock()
 	return s.answer(doc, int(s.n.Add(1)))
 }
 

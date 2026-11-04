@@ -1,6 +1,6 @@
 # o-gh: agent guide
 
-`o-gh` (so `o gh`) is the family's GitHub PR tool: the PRs page (Mine, My Reviews, Watched, Ignored) and the signals it sends into the mtm inbox. It reads GitHub through the `gh` CLI only, one `gh api graphql --input -` request per poll, and never writes to GitHub (`pr checkout` is gh's local checkout).
+`o-gh` (so `o gh`) is the family's GitHub PR tool: the PRs page (Mine, My Reviews, Watched, Ignored) and the signals it sends into the mtm inbox. It reads GitHub through the `gh` CLI only, small `gh api graphql --input -` requests per poll (`pollparts.go`: one per search, tracked PRs in batches, retries, slim fragments), and never writes to GitHub (`pr checkout` is gh's local checkout).
 
 It meets mtm only through each other's command line: mtm mounts the page from `o-gh catalog` and runs `o-gh pr VERB --target ID`; o-gh runs `mtm action-item add --source gh --url URL --why WHY --title --kind --key --reopen` (spelled once, in `inboxCommand`). o-gh never imports a matomeru package or opens mtm's database.
 
@@ -13,9 +13,10 @@ Keep planning work in the family planning workspace, separate from this reposito
 | Concern | File |
 |---|---|
 | `main`, the oden app, the shell's `--target` reveal, `o gh signals` | `main.go` |
-| The gh runner, the GraphQL query (searches + one alias per watched PR), parsing, check states, `PRKey` | `gh.go` |
+| The gh runner, parsing, check states, `PRKey` | `gh.go` |
 | Collections, ignore rules, CI from checks (`pr.ignore-checks`), `classify` | `collections.go` |
 | The data directory: `state.json` (watched, ignored, allowed), the lock, atomic writes | `state.go` |
+| The poll: parts, fragments, retries, concurrency, `Query` | `pollparts.go` |
 | `Tool`, the settings as a `Config`, the cached poll (`current`) | `tool.go` |
 | On-call window (`oncall.*`, copied from o-slack) | `oncall.go` |
 | Signal diffing, the inbox seam (`inboxCommand`, `mtmInbox`), `runSignals` | `signals.go` |

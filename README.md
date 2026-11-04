@@ -12,7 +12,7 @@
 
 <p align="center">The family's GitHub pull requests: yours, the ones waiting on your review, the ones you watch and the ones you ignore, on one page, with new review requests and CI changes sent to the mtm inbox.</p>
 
-o-gh (`o gh` under [oden](https://github.com/ofamtools/oden)'s `o`, or `o-gh`) reads GitHub through the `gh` CLI you are already logged in to: one `gh api graphql` request answers both searches and every watched PR. It never writes to GitHub. What you watch and ignore is o-gh's own state, kept in its data directory.
+o-gh (`o gh` under [oden](https://github.com/ofamtools/oden)'s `o`, or `o-gh`) reads GitHub through the `gh` CLI you are already logged in to: a poll is several small `gh api graphql` requests (each search, and the tracked PRs in batches of 20), two at a time, each failing and retrying on its own: a 502, 503 or 504 is retried after a pause, then at half the page size, and a part that still fails keeps its last answer (`o gh signals` exits non-zero and records nothing from it). Your PRs (Mine and the tracked ones) are read with their checks (`contexts`, 50 each; if that request keeps timing out it falls back to the rollup state alone); review requests (My Reviews, On-call) are read minimal: who, the request and the overall CI state; `pr.show` and `pr.view` fetch the body and every check of one PR when asked. It never writes to GitHub. What you watch and ignore is o-gh's own state, kept in its data directory.
 
 ## Install
 
@@ -96,7 +96,7 @@ A PR can be in Mine and Watched at once. An ignored PR is in Ignored only and se
 
 `o gh signals` polls once, compares with the last run and sends each new item to the mtm inbox:
 
-- **review-requested**: a PR in My Reviews that the last run did not see there. On the first run every open request is new.
+- **review-requested**: an open PR in My Reviews that the last run did not see there; its why carries the CI state (`review requested (CI failing)`). A merged or closed PR makes no signal, and when one the last run held has merged or closed its inbox item is archived (`mtm action-item archive`, found by its key). On the first run every open request is new.
 - **oncall-review-requested**: the same for On-call reviews, which are searched only while you are on call (below). Leaving the window empties the record, so the next window signals what is open then.
 - **ci**: a PR in Mine or Watched whose CI became `fail` or `pass` (a change to `pending` is not a signal).
 - **review**, **comment**: on a PR in Mine or Watched, a review by someone else (approved, changes requested), or a comment (a review that only comments, or the comment count rising). Your own are not signals.
@@ -129,7 +129,7 @@ The lists read one cached poll (`poll.max-age`, default 60s); a watch the cached
 |---|---|
 | `pr.mine-query` | `is:pr is:open author:@me archived:false sort:updated-desc` |
 | `pr.reviews-query` | `is:pr is:open review-requested:@me archived:false sort:updated-desc` (`user-review-requested:@me` leaves out team requests) |
-| `pr.limit` | 50 PRs per search |
+| `pr.limit` | 25 PRs per search (1-100) |
 | `pr.ignore`, `pr.ignore-checks` | none |
 | `pr.signals` | every kind (see Signals) |
 | `oncall.mode` / `oncall.start` / `oncall.weeks` | `auto` / none / 1 |

@@ -76,6 +76,7 @@ func TestOncallSearchOnlyWhileOnCall(t *testing.T) {
 	tool, gh, inbox, _ := testTool(t)
 	ctx := context.Background()
 	gh.oncall = []string{urlTeapot}
+	gh.nodes[urlTeapot]["state"] = "OPEN" // a merged request makes no signal
 	setting(t, tool, setOncallQuery, "is:pr is:open team-review-requested:tea-shop/cooks")
 	setting(t, tool, setOncallStart, "2026-11-04")
 	setting(t, tool, setOncallWeeks, 1)
@@ -86,7 +87,7 @@ func TestOncallSearchOnlyWhileOnCall(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if strings.Contains(gh.bodies[len(gh.bodies)-1], "oncall: search") || slices.Contains(kindsOf(run.Signals), kindOncall) {
+	if strings.Contains(strings.Join(gh.bodies, "\n"), "oncall: search") || slices.Contains(kindsOf(run.Signals), kindOncall) {
 		t.Fatalf("off call: %v", kindsOf(run.Signals))
 	}
 	cs, _, _ := tool.collect(ctx, tool.config(), false)
@@ -96,11 +97,12 @@ func TestOncallSearchOnlyWhileOnCall(t *testing.T) {
 
 	// At local midnight the window opens: the request is an item once.
 	tool.now = func() time.Time { return time.Date(2026, 11, 4, 0, 0, 0, 0, time.Local) }
+	seen := len(gh.bodies)
 	run, err = tool.runSignals(ctx, tool.config(), false)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(gh.bodies[len(gh.bodies)-1], "oncall: search") {
+	if !strings.Contains(strings.Join(gh.bodies[seen:], "\n"), "oncall: search") {
 		t.Fatal("on call: the on-call search did not run")
 	}
 	var got []Signal
@@ -109,7 +111,7 @@ func TestOncallSearchOnlyWhileOnCall(t *testing.T) {
 			got = append(got, s)
 		}
 	}
-	if len(got) != 1 || got[0].URL != urlTeapot || got[0].ItemKey() != "oncall-review-requested:pottery/teapot#7:oncall" || !strings.HasPrefix(got[0].Why, "on-call review requested:") {
+	if len(got) != 1 || got[0].URL != urlTeapot || got[0].ItemKey() != "oncall-review-requested:pottery/teapot#7:oncall" || !strings.HasPrefix(got[0].Why, "on-call review requested (CI passing): ") {
 		t.Fatalf("on-call signal %+v", got)
 	}
 	cs, _, _ = tool.collect(ctx, tool.config(), true)

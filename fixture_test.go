@@ -149,9 +149,10 @@ func (f *fakeGH) setCI(url, state string) {
 
 // inboxLog records the signals a fake inbox received.
 type inboxLog struct {
-	mu   sync.Mutex
-	got  []Signal
-	fail map[string]bool // URLs whose delivery fails
+	mu       sync.Mutex
+	got      []Signal
+	fail     map[string]bool // URLs whose delivery fails
+	archived []string        // item keys archived
 }
 
 func (l *inboxLog) push(_ context.Context, s Signal) error {
@@ -164,6 +165,13 @@ func (l *inboxLog) push(_ context.Context, s Signal) error {
 	return nil
 }
 
+func (l *inboxLog) archive(_ context.Context, key string) error {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.archived = append(l.archived, key)
+	return nil
+}
+
 // testTool is a Tool on a temp data and config directory with the fakes.
 func testTool(t *testing.T) (*Tool, *fakeGH, *inboxLog, *bytes.Buffer) {
 	t.Helper()
@@ -171,7 +179,7 @@ func testTool(t *testing.T) (*Tool, *fakeGH, *inboxLog, *bytes.Buffer) {
 	t.Setenv("O_GH_DATA", "")
 	gh, inbox := newFakeGH(t), &inboxLog{fail: map[string]bool{}}
 	out := &bytes.Buffer{}
-	tool := &Tool{store: Store{Dir: t.TempDir()}, gh: gh.run, inbox: inbox.push, now: func() time.Time { return fixtureNow },
+	tool := &Tool{store: Store{Dir: t.TempDir()}, gh: gh.run, inbox: inbox.push, archive: inbox.archive, sleep: func(context.Context, time.Duration) {}, now: func() time.Time { return fixtureNow },
 		opener: func(context.Context, string) error { return nil }, clip: func(string) error { return nil },
 		Stdin: strings.NewReader(""), Stdout: out, Stderr: &bytes.Buffer{}}
 	if err := tool.newRuntime(true); err != nil {

@@ -103,7 +103,7 @@ func (t *Tool) newRuntime(targets bool) error {
 	for _, s := range []ochazuke.Setting{
 		{Name: setMine, Type: ochazuke.SettingString, Default: defaultMine, Description: "The GitHub search behind Mine"},
 		{Name: setReviews, Type: ochazuke.SettingString, Default: defaultReviews, Description: "The GitHub search behind My Reviews (user-review-requested:@me leaves out team requests)"},
-		{Name: setLimit, Type: ochazuke.SettingInteger, Default: 50, Description: "PRs per search (1-100)"},
+		{Name: setLimit, Type: ochazuke.SettingInteger, Default: 25, Description: "PRs per search (1-100); a search that times out is retried at half"},
 		{Name: setIgnore, Type: ochazuke.SettingList, Default: []string{}, Description: "Ignore rules: each is terms that must all match, from draft, repo:GLOB, author:GLOB, label:GLOB, base:GLOB, head:GLOB, title:TEXT (for example \"author:dependabot*\"); pr watch or pr unignore overrides a rule for one PR"},
 		{Name: setIgnoreChecks, Type: ochazuke.SettingList, Default: []string{}, Description: "Check names (globs) CI leaves out: a failing optional check does not make a PR's CI fail"},
 		{Name: setSignals, Type: ochazuke.SettingList, Default: allKinds(), Description: "The signal kinds o-gh signals sends: " + strings.Join(allKinds(), ", ") + " (empty sends all; a kind left out is still recorded, so adding it later replays nothing)"},
@@ -282,16 +282,17 @@ func (t *Tool) collectionRows(id string) ochazuke.AppHandler {
 	}
 }
 
-// item is the PR's item: from the current poll, else fetched alone.
+// item is the PR's item with its detail: the collections' row (else the PR
+// alone), its fields replaced by a one-PR query that also reads the body
+// and every check, which the polls leave out.
 func (t *Tool) item(ctx context.Context, cfg Config, k PRKey) (Item, error) {
-	cs, _, err := t.collect(ctx, cfg, false)
-	if err != nil {
-		return Item{}, err
+	cs, _, cerr := t.collect(ctx, cfg, false)
+	if cerr != nil {
+		return Item{}, cerr
 	}
-	if it, ok := cs.find(k.URL()); ok && !it.Stale {
-		return it, nil
-	}
-	p, err := poll(ctx, t.gh, Query{Watched: []PRKey{k}}, t.now())
+	base, have := cs.find(k.URL())
+	have = have && !base.Stale
+	p, err := t.poll(ctx, Query{Watched: []PRKey{k}, Detail: true})
 	if err != nil {
 		return Item{}, err
 	}
@@ -302,6 +303,11 @@ func (t *Tool) item(ctx context.Context, cfg Config, k PRKey) (Item, error) {
 		}
 		return Item{}, errors.New(msg)
 	}
+	pr := p.Watched[0]
+	if have {
+		base.PR, base.CI = pr, cfg.Rules.CI(pr)
+		return base, nil
+	}
 	st, err := t.store.State()
 	if err != nil {
 		return Item{}, err
@@ -311,7 +317,6 @@ func (t *Tool) item(ctx context.Context, cfg Config, k PRKey) (Item, error) {
 		return it, nil
 	}
 	// Neither in a search nor marked: still the PR asked for.
-	pr := p.Watched[0]
 	return Item{PR: pr, CI: cfg.Rules.CI(pr)}, nil
 }
 

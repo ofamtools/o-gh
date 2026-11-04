@@ -76,40 +76,13 @@ func TestPollKeepsDataBesideAnError(t *testing.T) {
 	// gh exits non-zero when the answer carries errors; the data still counts.
 	fix := readFixture(t)
 	run := func(context.Context, []byte, ...string) ([]byte, error) { return fix, errors.New("exit status 1") }
-	p, err := poll(context.Background(), run, fixtureQuery(), fixtureNow)
+	p, err := poll(context.Background(), run, Query{Mine: defaultMine}, fixtureNow)
 	if err != nil || len(p.Mine) != 2 {
 		t.Fatalf("poll: %v %+v", err, p)
 	}
 	fail := func(context.Context, []byte, ...string) ([]byte, error) { return nil, errors.New("gh: offline") }
 	if _, err := poll(context.Background(), fail, fixtureQuery(), fixtureNow); err == nil {
 		t.Fatal("a failed gh polled")
-	}
-}
-
-func TestBuildQuery(t *testing.T) {
-	doc, vars := buildQuery(fixtureQuery())
-	for _, want := range []string{
-		"query($first: Int!, $mine: String!, $reviews: String!) {",
-		"mine: search(query: $mine, type: ISSUE, first: $first)",
-		"reviews: search(query: $reviews, type: ISSUE, first: $first)",
-		`w0: repository(owner: "pottery", name: "teapot") { pullRequest(number: 7) { ...pr } }`,
-		`w1: repository(owner: "pottery", name: "gone") { pullRequest(number: 1) { ...pr } }`,
-		"fragment pr on PullRequest",
-	} {
-		if !strings.Contains(doc, want) {
-			t.Errorf("query lacks %q:\n%s", want, doc)
-		}
-	}
-	if vars["mine"] != defaultMine || vars["reviews"] != defaultReviews || vars["first"] != 50 {
-		t.Fatalf("vars %v", vars)
-	}
-	// One PR alone: no searches, no variables.
-	doc, vars = buildQuery(Query{Watched: []PRKey{{Owner: "a", Name: "b", Number: 1}}})
-	if strings.Contains(doc, "search(") || !strings.HasPrefix(doc, "query {") || len(vars) != 0 {
-		t.Fatalf("watched only:\n%s %v", doc, vars)
-	}
-	if _, vars = buildQuery(Query{Mine: "x", Limit: 500}); vars["first"] != 50 {
-		t.Fatalf("limit not clamped: %v", vars)
 	}
 }
 

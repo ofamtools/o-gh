@@ -126,7 +126,7 @@ func TestShellCollectionsAndMarks(t *testing.T) {
 		t.Fatal("a bad target was watched")
 	}
 	// Every list above shared one poll per change of the watched set.
-	if gh.calls > 3 {
+	if gh.calls > 9 { // a poll is up to three requests (mine, reviews, tracked)
 		t.Fatalf("%d polls", gh.calls)
 	}
 }

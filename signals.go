@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -109,6 +110,23 @@ var reviewStates = map[string]string{"APPROVED": kindPRReview, "CHANGES_REQUESTE
 
 func shortSHA(s string) string { return s[:min(12, len(s))] }
 
+// openOnly reports whether a review request is for a PR that is not open
+// (a custom query without is:open): it makes no signal and is not kept.
+func openOnly(pr PR) bool { return pr.State != "" && pr.State != "OPEN" }
+
+// ciWhy is the CI state of a review request as a phrase for its why.
+func ciWhy(ci string) string {
+	switch ci {
+	case "pass":
+		return " (CI passing)"
+	case "fail":
+		return " (CI failing)"
+	case "pending":
+		return " (CI pending)"
+	}
+	return ""
+}
+
 // diffSignals compares the collections and the poll with the last run's
 // snapshot (nil for none) and answers the signals and the snapshot to keep
 // when every signal is delivered.
@@ -120,24 +138,36 @@ func diffSignals(prev *Snapshot, c Collections, p Poll, o diffOpts, at time.Time
 			out = append(out, s)
 		}
 	}
+	if p.hasFailed("reviews") && prev != nil {
+		next.Reviews = append(next.Reviews, prev.Reviews...) // not read: keep what the last run knew
+	}
 	for _, it := range c[Reviews] {
+		if p.hasFailed("reviews") || openOnly(it.PR) {
+			continue
+		}
 		next.Reviews = append(next.Reviews, it.URL)
 		if prev != nil && slices.Contains(prev.Reviews, it.URL) {
 			continue
 		}
-		why := "review requested: " + it.Key + " " + it.Title
+		why := "review requested" + ciWhy(it.CI) + ": " + it.Key + " " + it.Title
 		if it.Author != "" {
 			why += " (by " + it.Author + ")"
 		}
 		emit(Signal{Kind: kindReview, URL: it.URL, Key: it.Key, Title: it.Title, Why: why, Event: o.Viewer})
 	}
-	if o.Oncall {
+	if o.Oncall && p.hasFailed("oncall") && prev != nil {
+		next.Oncall = append(next.Oncall, prev.Oncall...)
+	}
+	if o.Oncall && !p.hasFailed("oncall") {
 		for _, it := range c[OncallReviews] {
+			if openOnly(it.PR) {
+				continue
+			}
 			next.Oncall = append(next.Oncall, it.URL)
 			if (prev != nil && slices.Contains(prev.Oncall, it.URL)) || slices.ContainsFunc(c[Reviews], func(r Item) bool { return r.URL == it.URL }) {
 				continue // seen, or already a request to you
 			}
-			why := "on-call review requested: " + it.Key + " " + it.Title
+			why := "on-call review requested" + ciWhy(it.CI) + ": " + it.Key + " " + it.Title
 			if it.Author != "" {
 				why += " (by " + it.Author + ")"
 			}
@@ -392,6 +422,41 @@ func mtmInbox(ctx context.Context, s Signal) error {
 	return nil
 }
 
+// archiveItem archives the open gh action items with key, through
+//
+//	mtm action-item list --source gh --format json
+//	mtm action-item archive --target ID
+//
+// (O_GH_MTM and O_GH_MTM_ARGS as for inboxCommand). No item is no error.
+func archiveItem(ctx context.Context, key string) error {
+	bin := os.Getenv("O_GH_MTM")
+	if bin == "" {
+		bin = "mtm"
+	}
+	pre := strings.Fields(os.Getenv("O_GH_MTM_ARGS"))
+	ctx, cancel := context.WithTimeout(ctx, inboxTimeout)
+	defer cancel()
+	list := append(append([]string{}, pre...), "action-item", "list", "--source", "gh", "--format", "json")
+	out, err := exec.CommandContext(ctx, bin, list...).Output()
+	if err != nil {
+		return fmt.Errorf("mtm action-item list: %w", err)
+	}
+	var items []struct{ ID, Key string }
+	if err := json.Unmarshal(out, &items); err != nil {
+		return fmt.Errorf("mtm action-item list: %w", err)
+	}
+	for _, it := range items {
+		if it.Key != key {
+			continue
+		}
+		arch := append(append([]string{}, pre...), "action-item", "archive", "--target", it.ID)
+		if msg, err := exec.CommandContext(ctx, bin, arch...).CombinedOutput(); err != nil {
+			return fmt.Errorf("mtm action-item archive %s: %w: %s", it.ID, err, strings.TrimSpace(string(msg)))
+		}
+	}
+	return nil
+}
+
 // SignalRun is what one signals run did.
 type SignalRun struct {
 	DryRun  bool       `json:"dry_run"`
@@ -423,6 +488,12 @@ func (t *Tool) runSignals(ctx context.Context, cfg Config, dry bool) (SignalRun,
 	}
 	sigs, next := diffSignals(prev, c, p, diffOpts{Viewer: p.Viewer, Kinds: cfg.Signals, Oncall: cfg.OncallActive, Rules: cfg.Rules}, t.now())
 	run := SignalRun{DryRun: dry, First: prev == nil, Signals: sigs, Polled: p.At}
+	if prev == nil && len(p.Failed) > 0 {
+		// No baseline to keep a failed part from: send and record nothing,
+		// so the next run is the first one.
+		run.Signals, run.First = []Signal{}, true
+		return run, errors.New(p.failures() + " (nothing sent or recorded: there is no earlier run to keep)")
+	}
 	if run.Signals == nil {
 		run.Signals = []Signal{}
 	}
@@ -433,6 +504,43 @@ func (t *Tool) runSignals(ctx context.Context, cfg Config, dry bool) (SignalRun,
 		return run, nil
 	}
 	var errs []error
+	// A review request the last run saw that has since merged or closed
+	// stops asking for attention: its action item is archived (by key).
+	cands := slices.Clone(p.Closing)
+	if prev != nil {
+		for _, list := range [][]PR{p.Mine, p.Reviews, p.Oncall, p.Watched} {
+			for _, pr := range list {
+				if slices.Contains(prev.Reviews, pr.URL) || slices.Contains(prev.Oncall, pr.URL) {
+					cands = append(cands, pr)
+				}
+			}
+		}
+	}
+	archived := map[string]bool{}
+	for _, pr := range cands {
+		if !openOnly(pr) || archived[pr.URL] {
+			continue
+		}
+		archived[pr.URL] = true
+		failed := false
+		for _, key := range []string{
+			Signal{Kind: kindReview, Key: pr.Key, Event: p.Viewer}.ItemKey(),
+			Signal{Kind: kindOncall, Key: pr.Key, Event: "oncall"}.ItemKey(),
+		} {
+			if err := t.archive(ctx, key); err != nil {
+				failed = true
+				run.Failed = append(run.Failed, pr.URL+": archive: "+err.Error())
+			}
+		}
+		if failed { // try again next run
+			if prev != nil && slices.Contains(prev.Reviews, pr.URL) {
+				next.Reviews = append(next.Reviews, pr.URL)
+			}
+			if prev != nil && slices.Contains(prev.Oncall, pr.URL) {
+				next.Oncall = append(next.Oncall, pr.URL)
+			}
+		}
+	}
 	for _, s := range sigs {
 		if err := t.inbox(ctx, s); err != nil {
 			run.Failed = append(run.Failed, s.URL+": "+err.Error())
@@ -447,6 +555,9 @@ func (t *Tool) runSignals(ctx context.Context, cfg Config, dry bool) (SignalRun,
 	}
 	if len(errs) > 0 {
 		return run, fmt.Errorf("%d of %d signals not sent (kept for the next run): %w", len(errs), len(sigs), errors.Join(errs...))
+	}
+	if len(p.Failed) > 0 {
+		return run, errors.New(p.failures() + " (the last run's record of it is kept)")
 	}
 	return run, nil
 }

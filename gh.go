@@ -15,7 +15,7 @@ import (
 	"time"
 )
 
-// The poll: one `gh api graphql --input -` request answers the viewer,
+// The poll (pollparts.go): separate `gh api graphql --input -` requests answer the viewer,
 // both searches (Mine and My Reviews) and every watched PR, each watched
 // one an alias (w0, w1, ...) of repository(owner, name).pullRequest(number),
 // so a PR is watched by its URL alone. Adapted from matomeru-old's
@@ -54,88 +54,6 @@ func ghRunner(bin string) Runner {
 	}
 }
 
-// prFragment is every field a PR row, its detail and the signals read.
-const prFragment = `fragment pr on PullRequest {
-  id number title url body isDraft state mergeable reviewDecision createdAt updatedAt
-  author { login }
-  repository { nameWithOwner }
-  headRefName baseRefName
-  labels(first: 10) { nodes { name } }
-  comments(last: 1) { totalCount nodes { author { login } } }
-  reviewRequests(first: 20) { nodes { requestedReviewer { ... on User { login } ... on Team { slug } } } }
-  reviews(last: 30) { nodes { id author { login } state } }
-  commits(last: 1) { nodes { commit { oid statusCheckRollup { state contexts(first: 100) { nodes {
-    __typename
-    ... on CheckRun { name status conclusion detailsUrl }
-    ... on StatusContext { context state targetUrl } } } } } } }
-}`
-
-// Query is what one poll asks for.
-type Query struct {
-	Mine, Reviews string  // the search queries; "" leaves that search out
-	Oncall        string  // the on-call review search; "" off call or unset
-	Limit         int     // rows per search
-	Watched       []PRKey // fetched by number, whatever their state
-}
-
-// buildQuery is the GraphQL document and its variables for q.
-func buildQuery(q Query) (string, map[string]any) {
-	var params, body []string
-	vars := map[string]any{}
-	body = append(body, "  viewer { login }")
-	limit := q.Limit
-	if limit <= 0 || limit > 100 {
-		limit = 50
-	}
-	if q.Mine != "" || q.Reviews != "" || q.Oncall != "" {
-		params = append(params, "$first: Int!")
-		vars["first"] = limit
-	}
-	if q.Mine != "" {
-		params = append(params, "$mine: String!")
-		vars["mine"] = q.Mine
-		body = append(body, "  mine: search(query: $mine, type: ISSUE, first: $first) { issueCount nodes { ...pr } }")
-	}
-	if q.Oncall != "" {
-		params = append(params, "$oncall: String!")
-		vars["oncall"] = q.Oncall
-		body = append(body, "  oncall: search(query: $oncall, type: ISSUE, first: $first) { issueCount nodes { ...pr } }")
-	}
-	if q.Reviews != "" {
-		params = append(params, "$reviews: String!")
-		vars["reviews"] = q.Reviews
-		body = append(body, "  reviews: search(query: $reviews, type: ISSUE, first: $first) { issueCount nodes { ...pr } }")
-	}
-	for i, k := range q.Watched {
-		// Owner and name are checked by parseKey; the literals are safe.
-		body = append(body, fmt.Sprintf("  w%d: repository(owner: %q, name: %q) { pullRequest(number: %d) { ...pr } }", i, k.Owner, k.Name, k.Number))
-	}
-	head := "query"
-	if len(params) > 0 {
-		head += "(" + strings.Join(params, ", ") + ")"
-	}
-	return head + " {\n" + strings.Join(body, "\n") + "\n}\n" + prFragment + "\n", vars
-}
-
-// poll runs one query through gh.
-func poll(ctx context.Context, run Runner, q Query, now time.Time) (Poll, error) {
-	doc, vars := buildQuery(q)
-	body, err := json.Marshal(map[string]any{"query": doc, "variables": vars})
-	if err != nil {
-		return Poll{}, err
-	}
-	out, err := run(ctx, body, "api", "graphql", "--input", "-")
-	if err != nil {
-		// gh exits non-zero on GraphQL errors but still prints the answer:
-		// a watched PR that is gone is an error beside good data.
-		if p, perr := parsePoll(out, q, now); perr == nil && p.Viewer != "" {
-			return p, nil
-		}
-		return Poll{}, err
-	}
-	return parsePoll(out, q, now)
-}
-
 // Poll is one poll's answer.
 type Poll struct {
 	At           time.Time `json:"at"`
@@ -151,6 +69,14 @@ type Poll struct {
 	Asked []string `json:"asked,omitempty"`
 	// Errors are GraphQL errors that came with data (a watched PR gone).
 	Errors []string `json:"errors,omitempty"`
+	// Failed are the parts (requests) that never answered; their lists are
+	// empty here and are not to be read as empty on GitHub.
+	// Closing are the review requests the last run saw, read by number.
+	Closing []PR          `json:"closing,omitempty"`
+	Failed  []PartFailure `json:"failed,omitempty"`
+	// Notes say what the poll did instead (a part kept from the cache, a
+	// request that fell back to the rollup state).
+	Notes []string `json:"notes,omitempty"`
 }
 
 // PR is one pull request as the poll read it.

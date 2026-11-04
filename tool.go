@@ -2,9 +2,11 @@ package main
 
 import (
 	"context"
+	"errors"
 	"io"
 	"os"
 	"slices"
+	"strings"
 	"time"
 
 	"ofam.dev/ochazuke"
@@ -18,7 +20,11 @@ type Tool struct {
 	store   Store
 	gh      Runner
 	inbox   Inbox
-	now     func() time.Time
+	// archive archives the inbox items with a key (tests replace it).
+	archive func(ctx context.Context, key string) error
+	// sleep waits between gh retries (tests replace it: none sleeps).
+	sleep Sleeper
+	now   func() time.Time
 	// opener and clip open a URL and copy text; tests replace them.
 	opener func(ctx context.Context, url string) error
 	clip   func(text string) error
@@ -91,7 +97,9 @@ func (t *Tool) current(ctx context.Context, cfg Config, fresh bool) (Poll, State
 			// Tracked PRs the last signals run saw open are fetched by
 			// number too, so a merge or close (which drops a PR out of the
 			// is:open searches) is seen.
-			q.Watched = withTracked(q.Watched, t.lastSnapshot())
+			snap := t.lastSnapshot()
+			q.Watched = withTracked(q.Watched, snap)
+			q.Closing = withClosing(snap, q.Watched)
 		}
 		if !fresh {
 			var c cachedPoll
@@ -101,12 +109,58 @@ func (t *Tool) current(ctx context.Context, cfg Config, fresh bool) (Poll, State
 				return nil
 			}
 		}
-		if p, err = poll(ctx, t.gh, q, t.now()); err != nil {
+		if p, err = t.poll(ctx, q); err != nil {
 			return err
+		}
+		if len(p.Failed) > 0 {
+			if fresh {
+				return nil // signals keep what the last run knew of the parts that failed
+			}
+			// The page: the last good poll answers for the failed parts, and
+			// nothing is cached, so the next load asks again.
+			var c cachedPoll
+			if ok, _ := t.store.read(pollFile, &c); ok {
+				p.Failed = fillFailed(&p, c.Poll)
+			}
+			if len(p.Failed) > 0 {
+				return errors.New(p.failures())
+			}
+			return nil
 		}
 		return t.store.write(pollFile, cachedPoll{Query: q, Poll: p})
 	})
 	return p, st, err
+}
+
+// poll runs q through the tool's gh and sleeper.
+func (t *Tool) poll(ctx context.Context, q Query) (Poll, error) {
+	sleep := t.sleep
+	if sleep == nil {
+		sleep = realSleep
+	}
+	return pollWith(ctx, t.gh, sleep, q, t.now())
+}
+
+// withClosing are the PRs the last run held as open review requests (and
+// on-call requests), asked by number to learn whether they have merged or
+// closed. PRs already fetched in full are left out.
+func withClosing(prev *Snapshot, have []PRKey) []PRKey {
+	if prev == nil {
+		return nil
+	}
+	seen := map[string]bool{}
+	for _, k := range have {
+		seen[k.URL()] = true
+	}
+	var out []PRKey
+	for _, u := range append(slices.Clone(prev.Reviews), prev.Oncall...) {
+		if k, err := parseKey(u); err == nil && !seen[u] {
+			seen[u] = true
+			out = append(out, k)
+		}
+	}
+	slices.SortFunc(out, func(a, b PRKey) int { return strings.Compare(a.URL(), b.URL()) })
+	return out
 }
 
 // covers reports whether a poll asked for every watched PR.
@@ -131,7 +185,7 @@ func (t *Tool) collect(ctx context.Context, cfg Config, fresh bool) (Collections
 // newTool is a Tool with the real gh, inbox, opener and clipboard.
 func newTool(stdin io.Reader, stdout, stderr io.Writer) *Tool {
 	return &Tool{
-		store: Store{Dir: dataDir()}, gh: ghRunner(os.Getenv("O_GH_GH")), inbox: mtmInbox, now: time.Now,
+		store: Store{Dir: dataDir()}, gh: ghRunner(os.Getenv("O_GH_GH")), inbox: mtmInbox, archive: archiveItem, sleep: realSleep, now: time.Now,
 		opener: openURL, clip: copyToClipboard, Stdin: stdin, Stdout: stdout, Stderr: stderr,
 	}
 }

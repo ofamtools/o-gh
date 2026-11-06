@@ -180,3 +180,20 @@ func TestPageSmoke(t *testing.T) {
 		}
 	}
 }
+
+// pr and collection are thing nouns over their list: get reads one row by
+// its id, and a core verb the tool does not do (set) is unavailable.
+func TestListNounsAreThingNouns(t *testing.T) {
+	tool, _, _, _ := testTool(t)
+	out, err := sh(t, tool, "collection", "get", "collection/reviews")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got map[string]any
+	if err := json.Unmarshal([]byte(out), &got); err != nil || got["id"] != "collection/reviews" || got["label"] != "My Reviews" {
+		t.Fatalf("collection get: %v %v", err, got)
+	}
+	if _, err := sh(t, tool, "collection", "set", "collection/reviews"); err == nil {
+		t.Fatal("collection set ran on a read-only noun")
+	}
+}

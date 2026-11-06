@@ -1,0 +1,18 @@
+# namecheck baseline: file, function, kind, literal, count, reason (tab separated).
+# A row with a reason is a legitimate use that stays. A row without one is debt that may only shrink:
+# NAMECHECK_UPDATE=1 removes rows and lowers counts, never adds them. Adding a row is a reviewed edit.
+catalog.go	Tool.listPRs	compare	"all"	2
+catalog.go	Tool.openCollection	compare	"oncall"	1
+collections.go	Rules.CI	case	"pending"	1	GitHub check state value, not a state name of ours
+gh.go	parsePoll	cyclo	"-"	26
+oncall.go	Oncall.Active	case	"on"	1	setting value (oncall.mode on|off|auto), not a verb
+pollparts.go	fillFailed	compare	"mine"	1
+pollparts.go	fillFailed	compare	"oncall"	1
+pollparts.go	fillFailed	compare	"reviews"	1
+pollparts.go	request	case	"mine"	1
+pollparts.go	request	case	"oncall"	1
+pollparts.go	request	case	"reviews"	1
+rows.go	ciText	case	"pending"	1	GitHub check state value, not a state name of ours
+signals.go	Tool.runSignals	cyclo	"-"	30
+signals.go	ciWhy	case	"pending"	1	GitHub check state value, not a state name of ours
+signals.go	diffSignals	cyclo	"-"	75

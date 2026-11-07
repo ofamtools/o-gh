@@ -166,9 +166,9 @@ func (t *Tool) define() {
 	r.Define(signalNoun).
 		Verb("preview", t.signalVerb(true), "What o-gh signals would send now: new review requests and CI changes since the last run (o-gh signals --dry-run)").Fetch().
 		Verb("push", t.signalVerb(false), "Poll, and send each new review request and CI change to the mtm inbox (o-gh signals)")
-	// pr and collection are thing nouns over their list verbs (thing_store.go).
-	listStore{Noun: prNoun, List: t.listPRs}.define(r)
-	listStore{Noun: collectionNoun, List: t.listCollections}.define(r)
+	// pr and collection are thing nouns over their list verbs ((Runtime.DefineListFacts)).
+	r.DefineListFacts(ochazuke.ListFacts{Noun: prNoun, List: t.listPRs})
+	r.DefineListFacts(ochazuke.ListFacts{Noun: collectionNoun, List: t.listCollections})
 	params := map[string]map[string]ochazuke.Parameter{
 		prNoun + ".list": {
 			"collection": {Type: "string", Enum: []string{"all", Mine, Reviews, Watched, Ignored}, Description: "The collection (default all: every PR once)"},

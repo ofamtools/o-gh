@@ -182,9 +182,9 @@ func (t *Tool) define() {
 		params[prNoun+"."+c.ID] = map[string]ochazuke.Parameter{"fresh": {Type: "boolean", Description: "Poll now, not the cached poll"}}
 	}
 	for key, p := range params {
-		op := r.Operations[key]
+		op := r.Operations.At(ochazuke.Key(key))
 		op.Parameters = p
-		r.Operations[key] = op
+		r.Operations.Set(op)
 	}
 }
 

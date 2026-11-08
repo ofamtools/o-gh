@@ -74,14 +74,14 @@ func TestViewUnknownFields(t *testing.T) {
 
 func TestViewDeclared(t *testing.T) {
 	tool, _, _, _ := testTool(t)
-	op, ok := tool.r.Operations[prNoun+".view"]
+	op, ok := tool.r.Operations.Find(ochazuke.Key(prNoun + ".view"))
 	if !ok {
 		t.Fatal("pr.view is not declared")
 	}
 	if op.Result != ochazuke.ResultMarkdown {
 		t.Fatalf("pr.view result %q, want markdown", op.Result)
 	}
-	if _, ok := tool.r.Operations[prNoun+".show"]; !ok {
+	if _, ok := tool.r.Operations.Find(ochazuke.Key(prNoun + ".show")); !ok {
 		t.Fatal("pr.show was removed")
 	}
 	doc, err := catalogDoc(tool)

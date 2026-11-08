@@ -16,7 +16,7 @@ import (
 // runner, the inbox seam and the data directory.
 type Tool struct {
 	r       *ochazuke.Runtime
-	targets *ochazuke.List // the shell's --target rows (nil on the page)
+	targets *ochazuke.Collection // the shell's --target rows (nil on the page)
 	store   Store
 	gh      Runner
 	inbox   Inbox
@@ -211,7 +211,7 @@ func withTracked(keys []PRKey, prev *Snapshot) []PRKey {
 	}
 	var urls []string
 	for url, ps := range prev.PRs {
-		if ps.State == "OPEN" && !have[url] {
+		if ps.Status == "OPEN" && !have[url] {
 			urls = append(urls, url)
 		}
 	}

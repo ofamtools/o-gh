@@ -20,9 +20,9 @@ Keep planning work in the family planning workspace, separate from this reposito
 | `Tool`, the settings as a `Config`, the cached poll (`current`) | `tool.go` |
 | On-call window (`oncall.*`, copied from o-slack) | `oncall.go` |
 | Signal diffing, the inbox seam (`inboxCommand`, `mtmInbox`), `runSignals` | `signals.go` |
-| The catalog: settings, nouns `pr`, `collection`, `signal`, verbs, key rows, the declared page | `catalog.go` |
+| The catalog: settings, nouns `pr` (its saved filters are the collections), `signal`, verbs, key rows, the declared page | `catalog.go` |
 | PR rows and cells, URL opener, clipboard | `rows.go` |
-| `pr.view`: the readable Markdown view over `pr.show` (a `MarkdownResult` verb) | `view.go` |
+| `pr.show`: the readable Markdown view of a PR (a `MarkdownResult` verb); `pr.get` is the record | `view.go` |
 | The page on its own: `MountPage` over the tool's own catalog, reloads | `tui.go` |
 | The logo | `docs/logo/build.py` |
 

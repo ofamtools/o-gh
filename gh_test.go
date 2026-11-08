@@ -35,14 +35,14 @@ func TestParsePollFixture(t *testing.T) {
 	timer := p.Mine[0]
 	want := PR{
 		NodeID: "PR_mine1", Key: "tea-shop/kitchen#12", URL: urlTimer, Repo: "tea-shop/kitchen", Number: 12,
-		Title: "Add the rice cooker timer", Body: "Adds a timer to the cooker.\n\n- starts at lid close\n- beeps when done", Author: "miso", State: "OPEN", Mergeable: "MERGEABLE", ReviewDecision: "REVIEW_REQUIRED",
+		Title: "Add the rice cooker timer", Body: "Adds a timer to the cooker.\n\n- starts at lid close\n- beeps when done", Author: "miso", Status: "OPEN", Mergeable: "MERGEABLE", ReviewDecision: "REVIEW_REQUIRED",
 		Created: "2026-10-20T09:00:00Z", Updated: "2026-10-27T10:00:00Z", Head: "timer", Base: "main", HeadSHA: "aaa111",
 		Labels: []string{"feature"}, Comments: 2, Requested: []string{"nori", "team:cooks"},
-		Reviews: []Review{{ID: "nori:COMMENTED:0", Who: "nori", State: "COMMENTED"}}, Rollup: "FAILURE",
+		Reviews: []Review{{ID: "nori:COMMENTED:0", Who: "nori", Status: "COMMENTED"}}, Rollup: "FAILURE",
 		Checks: []Check{
-			{Name: "test", State: "pass", URL: "https://ci.example/test"},
-			{Name: "lint (optional)", State: "fail", URL: "https://ci.example/lint"},
-			{Name: "deploy/preview", State: "pass", URL: "https://ci.example/deploy"},
+			{Name: "test", Status: "pass", URL: "https://ci.example/test"},
+			{Name: "lint (optional)", Status: "fail", URL: "https://ci.example/lint"},
+			{Name: "deploy/preview", Status: "pass", URL: "https://ci.example/deploy"},
 		},
 	}
 	if !reflect.DeepEqual(timer, want) {
@@ -50,14 +50,14 @@ func TestParsePollFixture(t *testing.T) {
 		t.Fatalf("timer PR:\n%s", gotj)
 	}
 	menu := p.Mine[1]
-	if !menu.Draft || menu.Checks[0].State != "pending" || menu.ReviewDecision != "" {
+	if !menu.Draft || menu.Checks[0].Status != "pending" || menu.ReviewDecision != "" {
 		t.Fatalf("menu PR: %+v", menu)
 	}
 	if p.Reviews[0].Rollup != "" || p.Reviews[0].Checks != nil {
 		t.Fatalf("a null rollup: %+v", p.Reviews[0])
 	}
 	teapot := p.Watched[0]
-	if teapot.State != "MERGED" || teapot.Reviews[1].Who != "" || teapot.Checks[0].State != "skip" {
+	if teapot.Status != "MERGED" || teapot.Reviews[1].Who != "" || teapot.Checks[0].Status != "skip" {
 		t.Fatalf("teapot PR: %+v", teapot)
 	}
 }

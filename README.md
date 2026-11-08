@@ -12,7 +12,7 @@
 
 <p align="center">The family's GitHub pull requests: yours, the ones waiting on your review, the ones you watch and the ones you ignore, on one page, with new review requests and CI changes sent to the mtm inbox.</p>
 
-o-gh (`o gh` under [oden](https://github.com/ofamtools/oden)'s `o`, or `o-gh`) reads GitHub through the `gh` CLI you are already logged in to: a poll is several small `gh api graphql` requests (each search, and the tracked PRs in batches of 20), two at a time, each failing and retrying on its own: a 502, 503 or 504 is retried after a pause, then at half the page size, and a part that still fails keeps its last answer (`o gh signals` exits non-zero and records nothing from it). Your PRs (Mine and the tracked ones) are read with their checks (`contexts`, 50 each; if that request keeps timing out it falls back to the rollup state alone); review requests (My Reviews, On-call) are read minimal: who, the request and the overall CI state; `pr.show` and `pr.view` fetch the body and every check of one PR when asked. It never writes to GitHub. What you watch and ignore is o-gh's own state, kept in its data directory.
+o-gh (`o gh` under [oden](https://github.com/ofamtools/oden)'s `o`, or `o-gh`) reads GitHub through the `gh` CLI you are already logged in to: a poll is several small `gh api graphql` requests (each search, and the tracked PRs in batches of 20), two at a time, each failing and retrying on its own: a 502, 503 or 504 is retried after a pause, then at half the page size, and a part that still fails keeps its last answer (`o gh signals` exits non-zero and records nothing from it). Your PRs (Mine and the tracked ones) are read with their checks (`contexts`, 50 each; if that request keeps timing out it falls back to the rollup state alone); review requests (My Reviews, On-call) are read minimal: who, the request and the overall CI state; `pr.show` fetches the body and every check of one PR when asked. It never writes to GitHub. What you watch and ignore is o-gh's own state, kept in its data directory.
 
 ## Install
 
@@ -38,12 +38,12 @@ ochazuke (`v0.24.0`) and oden (`v0.1.1`) are required at their tags. An untracke
 o gh                                    # the PRs page (also o gh view; --smoke renders one frame)
 o gh pr mine|reviews|watched|ignored    # one collection's rows
 o gh pr list [--collection C] [--fresh] # every PR once, or one collection
-o gh pr show|view|open|open-files|copy-url|copy-branch --target PR
+o gh pr show|open|open-files|yank-url|yank-branch --target PR   # show reads the PR as text; pr get is the record
 o gh pr watch|unwatch|ignore|unignore --target PR
 o gh pr checkout [DIR] --target PR      # gh pr checkout, after a confirm (--yes)
 o gh pr send-to-inbox [WHY] --target PR
 o gh pr refresh                         # poll now; the counts
-o gh collection list|show|open          # show and open take --target collection/ID
+o gh pr open-search [--collection mine|reviews|oncall]  # the collection's search on github.com
 o gh signals [--dry-run]                # what changed on your PRs and new review requests, to the mtm inbox
 o gh settings list|set|reset            # the settings below
 o gh catalog                            # the nouns, verbs and page, for mtm
@@ -54,13 +54,6 @@ o gh catalog                            # the nouns, verbs and page, for mtm
 The examples use invented PRs (the tests' fixture, `testdata/poll.json`):
 
 ```console
-$ o gh collection list --format table
-Collection       PRs  About
-Mine               2  Your open PRs and drafts (pr.mine-query)
-My Reviews         2  Open PRs that ask for your review (pr.reviews-query)
-On-call reviews    0  Open PRs that ask for your on-call team's review, searched only while on call (oncall.review-query)
-Watched            0  PRs you watch: pr watch; their CI changes are signals
-Ignored            0  PRs you ignored or an ignore rule (pr.ignore) matches: no signals
 $ o gh pr mine --format table
 PR                   Title                      Author  CI      Review        Updated
 tea-shop/kitchen#12  Add the rice cooker timer  miso    ✗ fail  waiting on 2      20h
@@ -145,14 +138,14 @@ The catalog declares it as a data page (layout `split`: the lists Mine, My Revie
 | Key | Does |
 |---|---|
 | `enter` | open the PR in the browser |
-| `y y` | copy its URL |
+| `y y` | yank its URL |
 | `w` / `W` | watch / unwatch |
 | `d d` | ignore (it moves to Ignored) |
-| `g v` | read the PR (`pr.view`): a Markdown view of its facts, body and checks |
+| `g v` | read the PR (`pr.show`): a Markdown view of its facts, body and checks |
 | `g i` | send it to the mtm inbox |
 | `g c` | check it out here (`gh pr checkout`, after a confirm) |
 | `j` `k` `}` `{` | move, through the lists |
-| `:` | the palette: every verb, `pr unignore`, `pr show` and `pr view` included |
+| `:` | the palette: every verb, `pr unignore` and `pr show` included |
 | `?` | every key the focus answers |
 | `q` | quit (o-gh's own page only) |
 
@@ -162,7 +155,7 @@ The key rows are the catalog's, so mtm's page answers them too, and `bindings.js
 
 - **mtm.** o-gh is an extension: mtm mounts the PRs page from `o-gh catalog` and runs its verbs as `o-gh pr VERB --target ID`. Signals go in through mtm's command line only (`mtm action-item add`); o-gh never opens mtm's database.
 - **o-git.** o-git is local git (worktrees, branches) and never touches the network; o-gh is GitHub and never touches a repository except `pr checkout`, which is gh's.
-- **ochazuke and oden.** `o gh` is an oden subcommand of `o`; the `pr`, `collection` and `signal` nouns are an ochazuke runtime.
+- **ochazuke and oden.** `o gh` is an oden subcommand of `o`; the `pr` and `signal` nouns (the collections are saved filters on `pr`) are an ochazuke runtime.
 
 ## Logo
 

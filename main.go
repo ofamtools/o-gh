@@ -14,12 +14,10 @@ import (
 	"encoding/json"
 	"errors"
 	"flag"
-	"fmt"
 	"io"
 	"os"
 	"strings"
 
-	"ofam.dev/ochazuke"
 	ocli "ofam.dev/ochazuke/cli"
 	"ofam.dev/oden"
 )
@@ -73,14 +71,6 @@ func (t *Tool) Shell() *ocli.Shell {
 	sh.Usage = ocli.DefaultUsage("o-gh")
 	sh.Version = Version
 	sh.Reveal = func(target string) error {
-		if strings.HasPrefix(target, collectionNoun+"/") {
-			id := strings.TrimPrefix(target, collectionNoun+"/")
-			c, ok := collectionByID(id)
-			if !ok {
-				return fmt.Errorf("%q: not a collection (mine, reviews, oncall, watched, ignored)", id)
-			}
-			return t.targets.SetItems([]ochazuke.ListItem{{ID: target, Label: c.Title, Noun: collectionNoun, Data: target}})
-		}
 		return t.reveal(target)
 	}
 	return sh

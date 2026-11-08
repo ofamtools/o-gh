@@ -17,7 +17,7 @@ import (
 // the item as its record, and one cell per prColumns column.
 
 func prRow(it Item, now time.Time) ocli.Row {
-	// The row's record fills the detail pane; the body is read with pr.view.
+	// The row's record fills the detail pane; the body is read with pr.show.
 	it.Body = ""
 	return ocli.Row{Noun: prNoun, ID: rowIDPfx + it.Key, Label: it.Key + " " + it.Title, Data: it, Cells: prCells(it, now)}
 }
@@ -27,7 +27,7 @@ func prCells(it Item, now time.Time) []string {
 	if it.Draft {
 		title = "[draft] " + title
 	}
-	if s := strings.ToUpper(it.State); s == "MERGED" || s == "CLOSED" {
+	if s := strings.ToUpper(it.Status); s == "MERGED" || s == "CLOSED" {
 		title = "[" + strings.ToLower(s) + "] " + title
 	}
 	return []string{it.Key, title, it.Author, ciText(it.CI), reviewText(it.PR), age(now, it.Updated)}
@@ -63,7 +63,7 @@ func reviewText(pr PR) string {
 	}
 	approved := 0
 	for _, r := range pr.Reviews {
-		if r.State == "APPROVED" {
+		if r.Status == "APPROVED" {
 			approved++
 		}
 	}

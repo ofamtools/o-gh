@@ -18,7 +18,7 @@ import (
 //
 //	pr          one pull request (row id pr/OWNER/REPO#N; --target also takes
 //	            its URL or OWNER/REPO#N): list, mine, reviews, watched,
-//	            ignored, show, open, open-files, copy-url, copy-branch, watch,
+//	            ignored, show, open, open-files, yank-url, yank-branch, watch,
 //	            unwatch, ignore, unignore, checkout, send-to-inbox, refresh
 //	collection  Mine, My Reviews, On-call reviews, Watched, Ignored (collection/ID): list,
 //	            show, open
@@ -34,11 +34,10 @@ import (
 const Version = "0.1.0"
 
 const (
-	prNoun         = "pr"
-	collectionNoun = "collection"
-	signalNoun     = "signal"
-	pageID         = "gh"
-	targetsID      = "gh/targets"
+	prNoun     = "pr"
+	signalNoun = "signal"
+	pageID     = "gh"
+	targetsID  = "gh/targets"
 )
 
 // The settings (o-gh settings set NAME VALUE; ~/.config/o-gh/settings.json).
@@ -71,12 +70,6 @@ var prColumns = []ochazuke.Column{
 	{Title: "Updated", Width: 7, Align: ochazuke.AlignRight, Priority: 4},
 }
 
-var collectionColumns = []ochazuke.Column{
-	{Title: "Collection", Min: 10},
-	{Title: "PRs", Align: ochazuke.AlignRight, Width: 4},
-	{Title: "About", Priority: 1},
-}
-
 // listID is a collection's list on the page.
 func listID(c string) string { return pageID + "/" + c }
 
@@ -84,9 +77,9 @@ func listID(c string) string { return pageID + "/" + c }
 func prsPage() ocli.CatalogPage {
 	p := ocli.CatalogPage{ID: pageID, Title: "PRs", Layout: ocli.LayoutSplit,
 		Detail: &ocli.CatalogDetail{Fields: []string{
-			"key", "title", "url", "state", "draft", "author", "repo", "head", "base", "ci", "checks",
-			"review_decision", "reviews", "requested", "comments", "mergeable", "labels",
-			"in", "watching", "ignored", "ignored_by", "stale", "updated_at", "created_at",
+			"key", "title", "url", "status", "draft", "author", "repo", "head", "base", "ci", "checks",
+			"review_decision", "review_list", "requested", "comments", "mergeable", "labels",
+			"collection", "watching", "is_ignored", "ignored_by", "stale", "updated_at", "created_at",
 		}}}
 	for _, c := range collections {
 		p.Lists = append(p.Lists, ocli.CatalogList{ID: listID(c.ID), Noun: prNoun, Source: prNoun + "." + c.ID, Title: c.Title})
@@ -130,17 +123,17 @@ func (t *Tool) newRuntime(targets bool) error {
 // define registers the nouns' verbs, parameters and key rows.
 func (t *Tool) define() {
 	r := t.r
-	pr := r.Define(prNoun).Columns(prColumns...).
+	pr := r.Define(prNoun).Main().Columns(prColumns...).
 		Verb("list", t.listPRs, "List the PRs of a collection (mine, reviews, watched, ignored), or of all").Rows(prNoun).Fetch().Quiet()
 	for _, c := range collections {
 		pr.Verb(c.ID, t.collectionRows(c.ID), c.Title+": "+c.Description).Rows(prNoun).Fetch().Quiet()
 	}
-	pr.Verb("show", t.on(t.showPR), "Show one PR: its record, CI checks and reviews (read from the last poll, else fetched)").Fetch().
-		Verb("view", t.on(t.viewPR), "Read the PR as text: title, state, CI, reviewers, comments, branch, URL and the body (pr show is the record)").MarkdownResult().Fetch().
+	pr.Verb("show", t.on(t.viewPR), "Read the PR as text: title, status, CI, reviewers, comments, branch, URL and the body (pr get is the record)").MarkdownResult().Fetch().
 		Verb("open", t.on(t.openPR), "Open the PR in the browser").
+		Verb("open-search", t.openSearch, "Open a collection's search on github.com (mine, reviews, oncall)").
 		Verb("open-files", t.on(t.openFiles), "Open the PR's changed files in the browser").
-		Verb("copy-url", t.on(t.copyURL), "Copy the PR's URL to the clipboard and answer it").
-		Verb("copy-branch", t.on(t.copyBranch), "Copy the PR's head branch to the clipboard and answer it").
+		Verb("yank-url", t.on(t.yankURL), "Copy the PR's URL to the clipboard and answer it").
+		Verb("yank-branch", t.on(t.yankBranch), "Copy the PR's head branch to the clipboard and answer it").
 		Verb("watch", t.on(t.watch), "Watch the PR: it joins Watched, its CI changes become signals, and no ignore rule hides it").
 		Verb("unwatch", t.on(t.unwatch), "Stop watching the PR").
 		Verb("ignore", t.on(t.ignore), "Ignore the PR: it moves to Ignored and sends no signals").
@@ -152,23 +145,23 @@ func (t *Tool) define() {
 	// the rows. The palette, the CLI and bindings.json reach every verb.
 	pr.Mode("normal").
 		Bind("enter", ochazuke.Do(prNoun+".open")).
-		Bind("y y", ochazuke.Do(prNoun+".copy-url")).
+		Bind("y y", ochazuke.Do(prNoun+".yank-url")).
 		Bind("w", ochazuke.Do(prNoun+".watch")).
 		Bind("W", ochazuke.Do(prNoun+".unwatch")).
 		Bind("d d", ochazuke.Do(prNoun+".ignore")).
-		Bind("g v", ochazuke.Do(prNoun+".view")).
+		Bind("g v", ochazuke.Do(prNoun+".show")).
 		Bind("g i", ochazuke.Do(prNoun+".send-to-inbox")).
 		Bind("g c", ochazuke.Do(prNoun+".checkout"))
-	r.Define(collectionNoun).Columns(collectionColumns...).
-		Verb("list", t.listCollections, "List the collections with their counts").Rows(collectionNoun).Fetch().Quiet().
-		Verb("show", t.showCollection, "List one collection's PRs").Rows(prNoun).Fetch().
-		Verb("open", t.openCollection, "Open a collection's search on github.com (Mine, My Reviews)")
 	r.Define(signalNoun).
 		Verb("preview", t.signalVerb(true), "What o-gh signals would send now: new review requests and CI changes since the last run (o-gh signals --dry-run)").Fetch().
 		Verb("push", t.signalVerb(false), "Poll, and send each new review request and CI change to the mtm inbox (o-gh signals)")
-	// pr and collection are thing nouns over their list verbs ((Runtime.DefineListFacts)).
-	r.DefineListFacts(ochazuke.ListFacts{Noun: prNoun, List: t.listPRs})
-	r.DefineListFacts(ochazuke.ListFacts{Noun: collectionNoun, List: t.listCollections})
+	// pr is a thing noun over its list verb (Runtime.DefineListFacts); the collections are its saved filters.
+	r.DefineListFacts(ochazuke.ListFacts{Noun: prNoun, List: t.listPRs, Sample: Item{}})
+	// The collections are saved filters on the pr noun: a PR is in a
+	// collection when its collection prop holds the id.
+	for _, c := range collections {
+		pr.Filters(ochazuke.SavedFilter{Name: c.ID, Conditions: []ochazuke.PropFilter{{Prop: "collection", Op: "contains", Value: c.ID}}})
+	}
 	params := map[string]map[string]ochazuke.Parameter{
 		prNoun + ".list": {
 			"collection": {Type: "string", Enum: []string{"all", Mine, Reviews, Watched, Ignored}, Description: "The collection (default all: every PR once)"},
@@ -176,7 +169,7 @@ func (t *Tool) define() {
 		},
 		prNoun + ".checkout":      {"dir": {Type: "string", Description: "The repository's directory (default the current one)"}},
 		prNoun + ".send-to-inbox": {"why": {Type: "string", Description: "Why it needs you (default: sent from o-gh: the PR)"}},
-		collectionNoun + ".show":  {"fresh": {Type: "boolean", Description: "Poll now, not the cached poll"}},
+		prNoun + ".open-search":   {"collection": {Type: "string", Enum: []string{Mine, Reviews, OncallReviews}, Description: "The collection whose GitHub search to open"}},
 	}
 	for _, c := range collections {
 		params[prNoun+"."+c.ID] = map[string]ochazuke.Parameter{"fresh": {Type: "boolean", Description: "Poll now, not the cached poll"}}
@@ -344,10 +337,6 @@ func (t *Tool) mark(k PRKey) Mark {
 	return Mark{URL: k.URL(), Key: k.String(), Title: pr.Title, Repo: pr.Repo, Number: k.Number, At: t.now().UTC()}
 }
 
-func (t *Tool) showPR(ctx context.Context, cfg Config, k PRKey, _ ochazuke.Arguments) (any, error) {
-	return t.item(ctx, cfg, k)
-}
-
 func (t *Tool) openPR(ctx context.Context, _ Config, k PRKey, _ ochazuke.Arguments) (any, error) {
 	return map[string]string{"opened": k.URL()}, t.opener(ctx, k.URL())
 }
@@ -357,11 +346,11 @@ func (t *Tool) openFiles(ctx context.Context, _ Config, k PRKey, _ ochazuke.Argu
 	return map[string]string{"opened": u}, t.opener(ctx, u)
 }
 
-func (t *Tool) copyURL(_ context.Context, _ Config, k PRKey, _ ochazuke.Arguments) (any, error) {
+func (t *Tool) yankURL(_ context.Context, _ Config, k PRKey, _ ochazuke.Arguments) (any, error) {
 	return map[string]any{"url": k.URL(), "copied": t.clip(k.URL()) == nil}, nil
 }
 
-func (t *Tool) copyBranch(ctx context.Context, cfg Config, k PRKey, _ ochazuke.Arguments) (any, error) {
+func (t *Tool) yankBranch(ctx context.Context, cfg Config, k PRKey, _ ochazuke.Arguments) (any, error) {
 	pr := t.known(k)
 	if pr.Head == "" {
 		it, err := t.item(ctx, cfg, k)
@@ -480,53 +469,10 @@ func (t *Tool) refresh(ochazuke.Ctx) ochazuke.Result {
 	})
 }
 
-func (t *Tool) listCollections(ochazuke.Ctx) ochazuke.Result {
-	cfg := t.config()
-	return ochazuke.Pending(func(c context.Context) (any, error) {
-		cs, _, err := t.collect(c, cfg, false)
-		if err != nil {
-			return nil, err
-		}
-		out := make([]ocli.Row, 0, len(collections))
-		for _, col := range collections {
-			n := len(cs[col.ID])
-			out = append(out, ocli.Row{Noun: collectionNoun, ID: collectionNoun + "/" + col.ID, Label: col.Title,
-				Data:  map[string]any{"id": col.ID, "title": col.Title, "description": col.Description, "count": n},
-				Cells: []string{col.Title, fmt.Sprint(n), col.Description}})
-		}
-		return out, nil
-	})
-}
-
-// collectionOf is the collection an instance (or --target) names.
-func collectionOf(inst *ochazuke.Instance) (collection, error) {
-	if inst == nil {
-		return collection{}, errors.New("name a collection: --target collection/ID (mine, reviews, watched, ignored)")
-	}
-	id, _ := inst.Data.(string)
-	if id == "" {
-		id = inst.ID
-	}
-	id = id[strings.LastIndex(id, "/")+1:]
-	c, ok := collectionByID(id)
+func (t *Tool) openSearch(ctx ochazuke.Ctx) ochazuke.Result {
+	c, ok := collectionByID(ochazuke.StringArg(ctx.Args, "collection", Mine))
 	if !ok {
-		return collection{}, fmt.Errorf("%q: not a collection (mine, reviews, watched, ignored)", id)
-	}
-	return c, nil
-}
-
-func (t *Tool) showCollection(ctx ochazuke.Ctx) ochazuke.Result {
-	c, err := collectionOf(ctx.Instance)
-	if err != nil {
-		return ochazuke.Failed(err)
-	}
-	return t.collectionRows(c.ID)(ctx)
-}
-
-func (t *Tool) openCollection(ctx ochazuke.Ctx) ochazuke.Result {
-	c, err := collectionOf(ctx.Instance)
-	if err != nil {
-		return ochazuke.Failed(err)
+		return ochazuke.Failed(errors.New("collection: one of mine, reviews, oncall"))
 	}
 	cfg := t.config()
 	q := map[string]string{Mine: cfg.Query.Mine, Reviews: cfg.Query.Reviews, OncallReviews: cfg.OncallQuery}[c.ID]

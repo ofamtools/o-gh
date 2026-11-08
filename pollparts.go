@@ -33,7 +33,7 @@ type Query struct {
 	Limit         int     // rows per search
 	Watched       []PRKey // fetched by number, whatever their state
 	// Detail asks the Watched PRs for everything (body, all checks): the
-	// one-PR query behind pr.show and pr.view. Polls leave it off.
+	// one-PR query behind pr.show. Polls leave it off.
 	Detail bool `json:"detail,omitempty"`
 	// Closing are PRs fetched by number with the request fields only, to
 	// learn whether a review request the last run saw has merged or closed.

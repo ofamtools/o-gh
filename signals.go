@@ -112,7 +112,7 @@ func shortSHA(s string) string { return s[:min(12, len(s))] }
 
 // openOnly reports whether a review request is for a PR that is not open
 // (a custom query without is:open): it makes no signal and is not kept.
-func openOnly(pr PR) bool { return pr.State != "" && pr.State != "OPEN" }
+func openOnly(pr PR) bool { return pr.Status != "" && pr.Status != "OPEN" }
 
 // ciWhy is the CI state of a review request as a phrase for its why.
 func ciWhy(ci string) string {
@@ -216,7 +216,7 @@ func diffSignals(prev *Snapshot, c Collections, p Poll, o diffOpts, at time.Time
 			ps := prev.PRs[url]
 			pr, ok := read[url]
 			switch {
-			case ps.State != "OPEN":
+			case ps.Status != "OPEN":
 				// closed and out of every list: no longer tracked
 			case !ok:
 				// not read this time (a failed alias): keep what was known
@@ -251,7 +251,7 @@ func diffSignals(prev *Snapshot, c Collections, p Poll, o diffOpts, at time.Time
 		vanished := !slices.ContainsFunc(c[Mine], func(i Item) bool { return i.URL == url }) &&
 			!slices.ContainsFunc(c[Watched], func(i Item) bool { return i.URL == url }) &&
 			!slices.ContainsFunc(c[Ignored], func(i Item) bool { return i.URL == url })
-		cur := PRState{State: pr.State, Comments: pr.Comments, Mergeable: pr.Mergeable, Ignored: t.ignored}
+		cur := PRState{Status: pr.Status, Comments: pr.Comments, Mergeable: pr.Mergeable, Ignored: t.ignored}
 		if cur.Mergeable == "UNKNOWN" || cur.Mergeable == "" {
 			cur.Mergeable = ps.Mergeable
 		}
@@ -261,12 +261,12 @@ func diffSignals(prev *Snapshot, c Collections, p Poll, o diffOpts, at time.Time
 		mk := func(kind, why, event string) Signal {
 			return Signal{Kind: kind, URL: url, Key: pr.Key, Title: pr.Title, Why: why + ": " + pr.Key + " " + pr.Title, Event: event}
 		}
-		left := had && ps.State == "OPEN" && (pr.State == "MERGED" || pr.State == "CLOSED")
+		left := had && ps.Status == "OPEN" && (pr.Status == "MERGED" || pr.Status == "CLOSED")
 		if left && vanished {
 			// It dropped out of the open searches: signal once and stop
 			// tracking it.
 			if !t.ignored && !ps.Ignored {
-				if pr.State == "MERGED" {
+				if pr.Status == "MERGED" {
 					emit(mk(kindMerged, "merged", ""))
 				} else {
 					emit(mk(kindClosed, "closed without merging", ""))
@@ -294,11 +294,11 @@ func diffSignals(prev *Snapshot, c Collections, p Poll, o diffOpts, at time.Time
 			emit(mk(kindConflicts, "merge conflicts", shortSHA(pr.HeadSHA)))
 		}
 		for _, r := range pr.Reviews {
-			kind, ok := reviewStates[r.State]
+			kind, ok := reviewStates[r.Status]
 			if !ok || r.Who == o.Viewer || slices.Contains(ps.Reviews, r.ID) {
 				continue
 			}
-			what := map[string]string{"APPROVED": "approved", "CHANGES_REQUESTED": "changes requested", "COMMENTED": "review comment"}[r.State]
+			what := map[string]string{"APPROVED": "approved", "CHANGES_REQUESTED": "changes requested", "COMMENTED": "review comment"}[r.Status]
 			emit(mk(kind, what+" by "+r.Who, "review:"+r.ID))
 		}
 		if pr.Comments > ps.Comments && pr.LastCommentBy != o.Viewer {
@@ -310,7 +310,7 @@ func diffSignals(prev *Snapshot, c Collections, p Poll, o diffOpts, at time.Time
 		}
 		if left {
 			// Merged or closed but still listed (watched): signal once.
-			if pr.State == "MERGED" {
+			if pr.Status == "MERGED" {
 				emit(mk(kindMerged, "merged", ""))
 			} else {
 				emit(mk(kindClosed, "closed without merging", ""))

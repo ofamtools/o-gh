@@ -3,7 +3,7 @@
   "script": ["g", "v", "G", "esc"],
   "expect": [
     { "after": 0, "contains": ["Mine (2)", "Add the rice cooker timer"], "absent": ["Reviewers:", "Adds a timer"] },
-    { "after": 2, "contains": ["pr.view", "Add the rice cooker timer", "Draft: no", "CI: ", "Reviewers: nori (commented)", "Comments: 2", "Branch: timer -> main", "Description"] },
+    { "after": 2, "contains": ["pr.show", "Add the rice cooker timer", "Draft: no", "CI: ", "Reviewers: nori (commented)", "Comments: 2", "Branch: timer -> main", "Description"] },
     { "after": 3, "contains": ["starts at lid close", "beeps when done", "Checks", "lint (optional)"] },
     { "after": 4, "contains": ["Mine (2)"], "absent": ["Reviewers:", "beeps when done"] }
   ]

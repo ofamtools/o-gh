@@ -8,7 +8,7 @@ import (
 	"ofam.dev/ochazuke"
 )
 
-// pr.view: the PR as Markdown to read, where pr.show answers the record.
+// pr.show: the PR as Markdown to read, where pr.get answers the record.
 // The verb declares MarkdownResult, so the palette, mtm's page and the
 // viewer open it as a document; the CLI prints the text as it is.
 
@@ -37,7 +37,7 @@ func viewText(it Item) string {
 	line("PR", fmt.Sprintf("#%d", it.Number))
 	line("Repo", it.Repo)
 	line("Author", it.Author)
-	line("State", strings.ToLower(it.State))
+	line("Status", strings.ToLower(it.Status))
 	line("Draft", yesNo(it.Draft))
 	line("Mergeable", strings.ToLower(it.Mergeable))
 	line("CI", viewCI(it))
@@ -60,7 +60,7 @@ func viewText(it Item) string {
 		b.WriteString("No checks.\n")
 	}
 	for _, c := range it.Checks {
-		fmt.Fprintf(&b, "- %s %s\n", ciText(c.State), oneLine(c.Name))
+		fmt.Fprintf(&b, "- %s %s\n", ciText(c.Status), oneLine(c.Name))
 	}
 	return b.String()
 }
@@ -81,7 +81,7 @@ func viewCI(it Item) string {
 	}
 	counts := map[string]int{}
 	for _, c := range it.Checks {
-		counts[c.State]++
+		counts[c.Status]++
 	}
 	var parts []string
 	for _, s := range []string{"pass", "fail", "pending", "skip", "neutral"} {
@@ -104,7 +104,7 @@ func viewReviewers(pr PR) string {
 	var parts []string
 	seen := map[string]int{}
 	for _, r := range pr.Reviews {
-		state := strings.ToLower(strings.ReplaceAll(r.State, "_", " "))
+		state := strings.ToLower(strings.ReplaceAll(r.Status, "_", " "))
 		if i, ok := seen[r.Who]; ok {
 			parts[i] = r.Who + " (" + state + ")"
 			continue

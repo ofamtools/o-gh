@@ -1,0 +1,16 @@
+kind	old	new	note
+noun	gh.collection	gh.pr (saved filters mine, reviews, oncall, watched, ignored)	the collections are saved filters on the pr noun; the framework owns the short name collection
+operation	gh.collection.list	gh.pr.list --collection C	the counts are gone; list a collection to count it
+operation	gh.collection.show	gh.pr.list --collection C	
+operation	gh.collection.open	gh.pr.open-search --collection C	
+operation	gh.pr.view	gh.pr.show	view is show
+operation	gh.pr.show (record)	gh.pr.get	the old show folds into get
+operation	gh.pr.copy-url	gh.pr.yank-url	clipboard verbs are yank
+operation	gh.pr.copy-branch	gh.pr.yank-branch	clipboard verbs are yank
+field	state (PR, Check, Review, PRState)	status	stored poll.json and signals.json are read with state as status
+prop	in	collection	the PR's collections
+prop	ignored	is_ignored	a prop and a verb never share a word
+prop	reviews (PR)	review_list	a prop and a verb never share a word
+binding	pr/normal g v -> pr.view	pr/normal g v -> pr.show	
+binding	pr/normal y y -> pr.copy-url	pr/normal y y -> pr.yank-url	
+target	--target collection/ID	(removed)	

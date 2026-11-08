@@ -90,7 +90,7 @@ type PR struct {
 	Body           string   `json:"body,omitempty"`
 	Author         string   `json:"author"`
 	Draft          bool     `json:"draft"`
-	State          string   `json:"state"` // OPEN, CLOSED, MERGED
+	Status         string   `json:"status"` // OPEN, CLOSED, MERGED
 	Mergeable      string   `json:"mergeable,omitempty"`
 	ReviewDecision string   `json:"review_decision,omitempty"`
 	Created        string   `json:"created_at,omitempty"`
@@ -102,24 +102,24 @@ type PR struct {
 	Comments       int      `json:"comments"`
 	LastCommentBy  string   `json:"last_comment_by,omitempty"`
 	Requested      []string `json:"requested,omitempty"` // logins and team slugs
-	Reviews        []Review `json:"reviews,omitempty"`
+	Reviews        []Review `json:"review_list,omitempty"`
 	Rollup         string   `json:"rollup,omitempty"` // statusCheckRollup.state
 	Checks         []Check  `json:"checks,omitempty"`
 }
 
-// Check is one CI check or status context; State is pass, fail, pending,
+// Check is one CI check or status context; Status is pass, fail, pending,
 // skip or neutral.
 type Check struct {
-	Name  string `json:"name"`
-	State string `json:"state"`
-	URL   string `json:"url,omitempty"`
+	Name   string `json:"name"`
+	Status string `json:"status"`
+	URL    string `json:"url,omitempty"`
 }
 
 // Review is one submitted review.
 type Review struct {
-	ID    string `json:"id,omitempty"`
-	Who   string `json:"who"`
-	State string `json:"state"`
+	ID     string `json:"id,omitempty"`
+	Who    string `json:"who"`
+	Status string `json:"status"`
 }
 
 // node is a PullRequest as the fragment answers it.
@@ -294,7 +294,7 @@ func parsePoll(out []byte, q Query, now time.Time) (Poll, error) {
 func (n *node) pr() PR {
 	pr := PR{
 		NodeID: n.ID, URL: n.URL, Repo: n.Repository.NameWithOwner, Number: n.Number, Title: n.Title, Body: n.Body,
-		Draft: n.IsDraft, State: n.State, Mergeable: n.Mergeable, ReviewDecision: n.ReviewDecision,
+		Draft: n.IsDraft, Status: n.State, Mergeable: n.Mergeable, ReviewDecision: n.ReviewDecision,
 		Created: n.CreatedAt, Updated: n.UpdatedAt, Head: n.HeadRefName, Base: n.BaseRefName,
 		Comments: n.Comments.TotalCount,
 	}
@@ -335,7 +335,7 @@ func (n *node) pr() PR {
 		if id == "" {
 			id = fmt.Sprintf("%s:%s:%d", who, r.State, len(pr.Reviews))
 		}
-		pr.Reviews = append(pr.Reviews, Review{ID: id, Who: who, State: r.State})
+		pr.Reviews = append(pr.Reviews, Review{ID: id, Who: who, Status: r.State})
 	}
 	if len(n.Commits.Nodes) > 0 {
 		c := n.Commits.Nodes[0].Commit
@@ -344,9 +344,9 @@ func (n *node) pr() PR {
 			pr.Rollup = roll.State
 			for _, ctx := range roll.Contexts.Nodes {
 				if ctx.Name != "" || ctx.Typename == "CheckRun" {
-					pr.Checks = append(pr.Checks, Check{Name: ctx.Name, URL: ctx.DetailsURL, State: checkRunState(ctx.Status, ctx.Conclusion)})
+					pr.Checks = append(pr.Checks, Check{Name: ctx.Name, URL: ctx.DetailsURL, Status: checkRunState(ctx.Status, ctx.Conclusion)})
 				} else if ctx.Context != "" {
-					pr.Checks = append(pr.Checks, Check{Name: ctx.Context, URL: ctx.TargetURL, State: statusState(ctx.State)})
+					pr.Checks = append(pr.Checks, Check{Name: ctx.Context, URL: ctx.TargetURL, Status: statusState(ctx.State)})
 				}
 			}
 		}

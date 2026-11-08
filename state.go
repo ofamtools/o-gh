@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -151,10 +152,52 @@ func (s Store) read(name string, v any) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	if err := json.Unmarshal(b, v); err != nil {
+	if err := json.Unmarshal(migrateStatus(b), v); err != nil {
 		return false, fmt.Errorf("%s: %w", s.path(name), err)
 	}
 	return true, nil
+}
+
+// migrateStatus reads an older file's `state` keys as `status` (the lexicon
+// renamed the field; files written before keep the old key): every object
+// with a state and no status key is rewritten before it is decoded, and the
+// next write saves the new key. A file with no state key is returned as is.
+func migrateStatus(b []byte) []byte {
+	if !bytes.Contains(b, []byte(`"state"`)) {
+		return b
+	}
+	var v any
+	dec := json.NewDecoder(bytes.NewReader(b))
+	dec.UseNumber()
+	if dec.Decode(&v) != nil {
+		return b
+	}
+	out, err := json.Marshal(renameState(v))
+	if err != nil {
+		return b
+	}
+	return out
+}
+
+func renameState(v any) any {
+	switch x := v.(type) {
+	case map[string]any:
+		for k, e := range x {
+			x[k] = renameState(e)
+		}
+		if st, ok := x["state"]; ok {
+			if _, has := x["status"]; !has {
+				x["status"] = st
+			}
+			delete(x, "state")
+		}
+		return x
+	case []any:
+		for i, e := range x {
+			x[i] = renameState(e)
+		}
+	}
+	return v
 }
 
 // write encodes v into name atomically.
@@ -222,7 +265,7 @@ type Snapshot struct {
 // tell a new review, a new comment, a merge or a conflict from what was
 // already there.
 type PRState struct {
-	State     string   `json:"state"` // OPEN, CLOSED, MERGED
+	Status    string   `json:"status"` // OPEN, CLOSED, MERGED
 	Comments  int      `json:"comments"`
 	Mergeable string   `json:"mergeable,omitempty"`
 	Reviews   []string `json:"reviews,omitempty"` // review ids seen

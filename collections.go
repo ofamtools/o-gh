@@ -177,7 +177,7 @@ func (rs Rules) CI(pr PR) string {
 		if rs.checkIgnored(c.Name) {
 			continue
 		}
-		switch c.State {
+		switch c.Status {
 		case "fail":
 			fail = true
 		case "pending":
@@ -209,11 +209,11 @@ func glob(pattern, s string) bool {
 type Item struct {
 	PR
 	CI string   `json:"ci"`
-	In []string `json:"in"` // the collections (Ignored alone when ignored)
+	In []string `json:"collection"` // the collections (Ignored alone when ignored)
 	// Found are the searches that answered the PR (mine, reviews), ignored or not.
 	Found     []string `json:"found,omitempty"`
 	Watching  bool     `json:"watching"`
-	Ignored   bool     `json:"ignored"`
+	Ignored   bool     `json:"is_ignored"`
 	IgnoredBy string   `json:"ignored_by,omitempty"` // "you" or the rule's text
 	// Stale is set when the poll did not answer the PR (a watched or
 	// ignored PR it did not fetch, or one that is gone): the row is what

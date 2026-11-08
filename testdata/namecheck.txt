@@ -2,7 +2,7 @@
 # A row with a reason is a legitimate use that stays. A row without one is debt that may only shrink:
 # NAMECHECK_UPDATE=1 removes rows and lowers counts, never adds them. Adding a row is a reviewed edit.
 catalog.go	Tool.listPRs	compare	"all"	2
-catalog.go	Tool.openCollection	compare	"oncall"	1
+catalog.go	Tool.openSearch	compare	"oncall"	1
 collections.go	Rules.CI	case	"pending"	1	GitHub check state value, not a state name of ours
 gh.go	parsePoll	cyclo	"-"	26
 oncall.go	Oncall.Active	case	"on"	1	setting value (oncall.mode on|off|auto), not a verb

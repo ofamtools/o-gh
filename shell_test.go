@@ -59,8 +59,8 @@ func TestCatalog(t *testing.T) {
 			verbs[n.Name+"."+v.Name] = true
 		}
 	}
-	for _, want := range []string{"pr.mine", "pr.reviews", "pr.oncall", "pr.watched", "pr.ignored", "pr.open", "pr.show", "pr.copy-url", "pr.watch",
-		"pr.unwatch", "pr.ignore", "pr.unignore", "pr.checkout", "pr.send-to-inbox", "collection.list", "signal.preview", "signal.push"} {
+	for _, want := range []string{"pr.mine", "pr.reviews", "pr.oncall", "pr.watched", "pr.ignored", "pr.open", "pr.show", "pr.yank-url", "pr.watch",
+		"pr.unwatch", "pr.ignore", "pr.unignore", "pr.checkout", "pr.send-to-inbox", "pr.open-search", "signal.preview", "signal.push"} {
 		if !verbs[want] {
 			t.Errorf("catalog lacks %s", want)
 		}
@@ -117,11 +117,7 @@ func TestShellCollectionsAndMarks(t *testing.T) {
 	if len(inbox.got) != 1 || inbox.got[0].URL != urlGrade || !strings.HasPrefix(inbox.got[0].Why, "sent from o-gh: tea-shop/kitchen#40") {
 		t.Fatalf("inbox %+v", inbox.got)
 	}
-	// Collections answer counts; a bad target is refused.
-	out, _ = sh(t, tool, "collection", "list", "--format", "table")
-	if !strings.Contains(out, "My Reviews") {
-		t.Fatalf("collections:\n%s", out)
-	}
+	// A bad target is refused.
 	if _, err := sh(t, tool, "pr", "watch", "--target", "not-a-pr"); err == nil {
 		t.Fatal("a bad target was watched")
 	}
@@ -137,9 +133,8 @@ func TestShellShowFetchesAnUnknownPR(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var it Item
-	if err := json.Unmarshal([]byte(out), &it); err != nil || it.Title != "Teapot spout redesign" || it.CI != "pass" {
-		t.Fatalf("show %v %+v\n%s", err, it, out)
+	if !strings.Contains(out, "Teapot spout redesign") || !strings.Contains(out, "**CI:**") {
+		t.Fatalf("show %v\n%s", err, out)
 	}
 	if !strings.Contains(gh.bodies[len(gh.bodies)-1], `w0: repository(owner: \"pottery\", name: \"teapot\")`) {
 		t.Fatalf("lookup query %s", gh.bodies[len(gh.bodies)-1])
@@ -181,19 +176,39 @@ func TestPageSmoke(t *testing.T) {
 	}
 }
 
-// pr and collection are thing nouns over their list: get reads one row by
-// its id, and a core verb the tool does not do (set) is unavailable.
+// pr is a thing noun over its list: get reads one row by its id, and a core
+// verb the tool does not do (set) is unavailable. The collections are its
+// saved filters.
 func TestListNounsAreThingNouns(t *testing.T) {
 	tool, _, _, _ := testTool(t)
-	out, err := sh(t, tool, "collection", "get", "collection/reviews")
+	out, err := sh(t, tool, "pr", "list", "--format", "table")
+	if err != nil || !strings.Contains(out, "Add the rice cooker timer") {
+		t.Fatalf("pr list: %v\n%s", err, out)
+	}
+	out, err = sh(t, tool, "pr", "get", "pr/tea-shop/kitchen#12")
+	var got map[string]any
+	if err != nil || json.Unmarshal([]byte(out), &got) != nil || got["id"] != "pr/tea-shop/kitchen#12" {
+		t.Fatalf("pr get: %v %v\n%s", err, got, out)
+	}
+	if _, err := sh(t, tool, "pr", "set", "pr/tea-shop/kitchen#12"); err == nil {
+		t.Fatal("pr set ran on a read-only noun")
+	}
+}
+
+// The collections are saved filters on the pr noun, one per collection.
+func TestCollectionsAreSavedFilters(t *testing.T) {
+	tool, _, _, _ := testTool(t)
+	rows, err := tool.r.SavedFilters("", prNoun)
 	if err != nil {
 		t.Fatal(err)
 	}
-	var got map[string]any
-	if err := json.Unmarshal([]byte(out), &got); err != nil || got["id"] != "collection/reviews" || got["label"] != "My Reviews" {
-		t.Fatalf("collection get: %v %v", err, got)
+	have := map[string]bool{}
+	for _, f := range rows {
+		have[f.Name] = true
 	}
-	if _, err := sh(t, tool, "collection", "set", "collection/reviews"); err == nil {
-		t.Fatal("collection set ran on a read-only noun")
+	for _, c := range collections {
+		if !have[c.ID] {
+			t.Errorf("no saved filter %q on %s", c.ID, prNoun)
+		}
 	}
 }

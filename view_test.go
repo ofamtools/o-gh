@@ -22,7 +22,7 @@ func viewOf(t *testing.T, url string) string {
 	}
 	s, ok := out.(string)
 	if !ok {
-		t.Fatalf("pr.view answered %T, want text", out)
+		t.Fatalf("pr.show answered %T, want text", out)
 	}
 	return s
 }
@@ -41,7 +41,7 @@ func TestViewFull(t *testing.T) {
 	wantAll(t, got,
 		"# Add the rice cooker timer\n",
 		"- **PR:** #12\n", "- **Repo:** tea-shop/kitchen\n", "- **Author:** miso\n",
-		"- **State:** open\n", "- **Draft:** no\n", "- **Mergeable:** mergeable\n",
+		"- **Status:** open\n", "- **Draft:** no\n", "- **Mergeable:** mergeable\n",
 		"- **Review:** review required\n",
 		"nori (commented)", "nori (requested)", "team:cooks (requested)",
 		"- **Comments:** 2\n", "- **Branch:** timer -> main\n", "- **Labels:** feature\n",
@@ -74,22 +74,19 @@ func TestViewUnknownFields(t *testing.T) {
 
 func TestViewDeclared(t *testing.T) {
 	tool, _, _, _ := testTool(t)
-	op, ok := tool.r.Operations.Find(ochazuke.Key(prNoun + ".view"))
+	op, ok := tool.r.Operations.Find(ochazuke.Key(prNoun + ".show"))
 	if !ok {
-		t.Fatal("pr.view is not declared")
+		t.Fatal("pr.show is not declared")
 	}
 	if op.Result != ochazuke.ResultMarkdown {
-		t.Fatalf("pr.view result %q, want markdown", op.Result)
-	}
-	if _, ok := tool.r.Operations.Find(ochazuke.Key(prNoun + ".show")); !ok {
-		t.Fatal("pr.show was removed")
+		t.Fatalf("pr.show result %q, want markdown", op.Result)
 	}
 	doc, err := catalogDoc(tool)
 	if err != nil {
 		t.Fatal(err)
 	}
 	b, _ := ocliJSON(doc)
-	wantAll(t, b, `"view"`, `"markdown"`)
+	wantAll(t, b, `"show"`, `"markdown"`)
 }
 
 func ocliJSON(v any) (string, error) {

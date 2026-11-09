@@ -1,6 +1,6 @@
 {
   "name": "gh/pr-view",
-  "script": ["g", "v", "G", "esc"],
+  "script": ["g", "v", "G", "q"],
   "expect": [
     { "after": 0, "contains": ["Mine (2)", "Add the rice cooker timer"], "absent": ["Reviewers:", "Adds a timer"] },
     { "after": 2, "contains": ["pr.show", "Add the rice cooker timer", "Draft: no", "CI: ", "Reviewers: nori (commented)", "Comments: 2", "Branch: timer -> main", "Description"] },

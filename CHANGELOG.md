@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Changed: requires ochazuke v0.110.1 (esc only leaves insert in modals and `q` closes them; label-first pickers).
+
 ## v0.2.0 (2026-11-08)
 
 - Changed, breaking (lexicon, ochazuke v0.105.0, one shot, no aliases; every rename is in `docs/lexicon-renames-v0.105.tsv`): the `collection` noun is gone, its collections (mine, reviews, oncall, watched, ignored) are saved filters on `pr` (a `collection` prop holds a PR's collections) and `collection open` is `pr open-search --collection C`; `pr view` is `pr show` (the Markdown view) and the old `pr show` record is `pr get`; `copy-url` and `copy-branch` are `yank-url` and `yank-branch`; every `state` field of a PR, check, review and signal snapshot is `status` (GitHub's own `state` is still what the GraphQL answer says), and an older `poll.json` or `signals.json` is read with `state` as `status` and written back so; the row props `ignored` and `reviews` are `is_ignored` and `review_list`, and `in` is `collection`; `pr` is the main noun. `TestLexicon` runs with an empty baseline.

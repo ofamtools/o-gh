@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Changed: requires ochazuke v0.133.0 and oden v0.5.1. The lexicon word list is merged with ochazuke's; `namecheck` gains a reviewed row for the signal kind `closed` (data, not a verb). The `pr` noun already has the scaffold (dynamic list, show, get, edit-less record; the standard verbs the library adds). A direct run from a pane records its pane and session through the library's `MTM_*` actor reading; o-gh reads no host environment of its own.
+- Changed (parity): `o gh signals` is no longer a separate command beside the verbs, so mtm, the palette and MCP reach it as the verb `signal push`. The word still works: `signals` is an alias of the noun `signal`, whose default verb is `push` (`o gh signals`, `o gh signals --dry-run`, `o gh signals preview`). New parameter `dry-run` on `signal push` (the same as `signal preview`).
+
 ## v0.3.0
 
 - Changed: requires ochazuke v0.110.1 (esc only leaves insert in modals and `q` closes them; label-first pickers).

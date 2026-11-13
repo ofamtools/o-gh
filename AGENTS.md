@@ -12,7 +12,7 @@ Keep planning work in the family planning workspace, separate from this reposito
 
 | Concern | File |
 |---|---|
-| `main`, the oden app, the shell's `--target` reveal, `o gh signals` | `main.go` |
+| `main`, the oden app, the shell's `--target` reveal | `main.go` |
 | The gh runner, parsing, check states, `PRKey` | `gh.go` |
 | Collections, ignore rules, CI from checks (`pr.ignore-checks`), `classify` | `collections.go` |
 | The data directory: `state.json` (watched, ignored, allowed), the lock, atomic writes | `state.go` |

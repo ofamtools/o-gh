@@ -16,3 +16,4 @@ rows.go	ciText	case	"pending"	1	GitHub check state value, not a state name of ou
 signals.go	Tool.runSignals	cyclo	"-"	30
 signals.go	ciWhy	case	"pending"	1	GitHub check state value, not a state name of ours
 signals.go	diffSignals	cyclo	"-"	75
+signals.go	unsent	case	"closed"	1	a PR signal kind (the kinds are data in allKinds), not a verb name

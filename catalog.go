@@ -117,6 +117,10 @@ func (t *Tool) newRuntime(targets bool) error {
 		}
 	}
 	t.define()
+	// o-gh signals reads as the signal noun's default verb (push), as the command did.
+	if err := r.AddNounAlias(ochazuke.NounAlias{Alias: "signals", Noun: signalNoun}); err != nil {
+		return err
+	}
 	return ocli.DeclarePage(r, prsPage())
 }
 
@@ -152,7 +156,7 @@ func (t *Tool) define() {
 		Bind("g v", ochazuke.Do(prNoun+".show")).
 		Bind("g i", ochazuke.Do(prNoun+".send-to-inbox")).
 		Bind("g c", ochazuke.Do(prNoun+".checkout"))
-	r.Define(signalNoun).
+	r.Define(signalNoun).DefaultAction("push").
 		Verb("preview", t.signalVerb(true), "What o-gh signals would send now: new review requests and CI changes since the last run (o-gh signals --dry-run)").Fetch().
 		Verb("push", t.signalVerb(false), "Poll, and send each new review request and CI change to the mtm inbox (o-gh signals)")
 	// pr is a thing noun over its list verb (Runtime.DefineListFacts); the collections are its saved filters.
@@ -169,6 +173,7 @@ func (t *Tool) define() {
 		},
 		prNoun + ".checkout":      {"dir": {Type: "string", Description: "The repository's directory (default the current one)"}},
 		prNoun + ".send-to-inbox": {"why": {Type: "string", Description: "Why it needs you (default: sent from o-gh: the PR)"}},
+		signalNoun + ".push":      {"dry-run": {Type: "boolean", Description: "Print what would be sent and the commands; send nothing and keep the last run (the same as signal preview)"}},
 		prNoun + ".open-search":   {"collection": {Type: "string", Enum: []string{Mine, Reviews, OncallReviews}, Description: "The collection whose GitHub search to open"}},
 	}
 	for _, c := range collections {
@@ -489,7 +494,11 @@ func (t *Tool) openSearch(ctx ochazuke.Ctx) ochazuke.Result {
 }
 
 func (t *Tool) signalVerb(dry bool) ochazuke.AppHandler {
-	return func(ochazuke.Ctx) ochazuke.Result {
+	return func(c ochazuke.Ctx) ochazuke.Result {
+		dry := dry
+		if v, _ := c.Args["dry-run"].(bool); v {
+			dry = true
+		}
 		cfg := t.config()
 		return ochazuke.Pending(func(c context.Context) (any, error) {
 			return t.runSignals(c, cfg, dry)
